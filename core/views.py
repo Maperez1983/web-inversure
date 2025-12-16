@@ -14,7 +14,12 @@ def to_float(valor):
     except (TypeError, ValueError):
         return 0.0
 
-
+BASE_CONTEXT = {
+    "beneficio_bruto": 0,
+    "itp": 0,
+    "notaria": 0,
+    "registro": 0,
+}
 # =====================
 # SIMULADOR
 # =====================
@@ -90,3 +95,4 @@ def operaciones(request):
     return render(request, "core/operaciones.html", {
         "operaciones": operaciones
     })
+
