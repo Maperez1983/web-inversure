@@ -24,7 +24,7 @@ BASE_CONTEXT = {
 # SIMULADOR
 # =====================
 def simulador(request):
-    return render(request, "core/simulador.html", {})
+    return render(request, "core/simulador.html")
 # =====================
 # OPERACIONES
 # =====================
