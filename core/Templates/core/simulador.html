@@ -1,0 +1,146 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Simulador Inversure</title>
+
+    <script>
+        function calcularAutomaticos() {
+            const precio = parseFloat(document.getElementById("precio_compra").value) || 0;
+
+            const itp = precio * 0.02;
+            const notaria = precio * 0.002;
+            const registro = precio * 0.002;
+
+            document.getElementById("itp_auto").innerText = itp.toFixed(2) + " €";
+            document.getElementById("notaria_auto").innerText = notaria.toFixed(2) + " €";
+            document.getElementById("registro_auto").innerText = registro.toFixed(2) + " €";
+        }
+    </script>
+</head>
+
+<body>
+
+<!-- LOGO -->
+<div style="margin-bottom:20px;">
+    <img src="{% static 'core/logo_inversure.png' %}" alt="Inversure" style="max-height:80px;">
+</div>
+
+<h1>Simulador de operaciones · Inversure</h1>
+
+<form method="post">
+{% csrf_token %}
+
+<!-- ===================== -->
+<h2>1️⃣ Datos principales</h2>
+<!-- ===================== -->
+Precio compra:
+<input type="number" step="0.01" id="precio_compra" name="precio_compra" oninput="calcularAutomaticos()"><br>
+
+Precio venta:
+<input type="number" step="0.01" name="precio_venta"><br>
+
+Meses operación:
+<input type="number" step="1" name="meses"><br>
+
+% Financiación:
+<input type="number" step="0.01" name="financiacion"><br>
+
+<!-- ===================== -->
+<h2>2️⃣ Gastos automáticos de adquisición</h2>
+<!-- ===================== -->
+<p>ITP (2 %): <strong id="itp_auto">0.00 €</strong></p>
+<p>Notaría (0,2 %): <strong id="notaria_auto">0.00 €</strong></p>
+<p>Registro (0,2 %): <strong id="registro_auto">0.00 €</strong></p>
+
+<!-- ===================== -->
+<h2>3️⃣ Gastos de adquisición adicionales</h2>
+<!-- ===================== -->
+Gestoría compra: <input type="number" step="0.01" name="gestoria_compra"><br>
+Captación / reservas: <input type="number" step="0.01" name="comisiones_captacion"><br>
+Otros gastos adquisición: <input type="number" step="0.01" name="otros_adquisicion"><br>
+
+<!-- ===================== -->
+<h2>4️⃣ Inversión inicial</h2>
+<!-- ===================== -->
+Reforma: <input type="number" step="0.01" name="reforma"><br>
+Limpieza inicial: <input type="number" step="0.01" name="limpieza_inicial"><br>
+Mobiliario: <input type="number" step="0.01" name="mobiliario"><br>
+Otros puesta en marcha: <input type="number" step="0.01" name="otros_puesta_marcha"><br>
+
+<!-- ===================== -->
+<h2>5️⃣ Gastos recurrentes</h2>
+<!-- ===================== -->
+Comunidad: <input type="number" step="0.01" name="comunidad"><br>
+IBI: <input type="number" step="0.01" name="ibi"><br>
+Seguros: <input type="number" step="0.01" name="seguros"><br>
+Suministros: <input type="number" step="0.01" name="suministros"><br>
+Limpieza periódica: <input type="number" step="0.01" name="limpieza"><br>
+Ocupas / incidencias: <input type="number" step="0.01" name="ocupas"><br>
+Otros recurrentes: <input type="number" step="0.01" name="otros_recurrentes"><br>
+
+<!-- ===================== -->
+<h2>6️⃣ Gastos de venta</h2>
+<!-- ===================== -->
+Plusvalía municipal: <input type="number" step="0.01" name="plusvalia"><br>
+Inmobiliaria: <input type="number" step="0.01" name="inmobiliaria"><br>
+Gestoría venta: <input type="number" step="0.01" name="gestoria_venta"><br>
+Otros gastos venta: <input type="number" step="0.01" name="otros_venta"><br>
+
+<br>
+<button type="submit">Calcular operación</button>
+</form>
+
+{% if result %}
+<hr>
+
+<h2>📊 Resultados económicos</h2>
+
+<p><strong>Inversión total:</strong> {{ result.inversion_total }} €</p>
+<p><strong>Beneficio bruto:</strong> {{ result.beneficio_bruto }} €</p>
+
+<hr>
+
+<h2>🏢 Resultado Inversure</h2>
+
+<p>Beneficio Inversure (40 %): {{ result.beneficio_inversure }} €</p>
+<p>Gastos administración (5 %): {{ result.gastos_administracion }} €</p>
+<p>Gastos comerciales (5 %): {{ result.gastos_comerciales }} €</p>
+
+<p><strong>Beneficio neto Inversure:</strong> {{ result.beneficio_neto_inversure }} €</p>
+
+<hr>
+
+<h2>👥 Resultado partícipes</h2>
+
+<p>Beneficio partícipes (60 %): {{ result.beneficio_participes }} €</p>
+<p>Rentabilidad total: {{ result.rentabilidad_total }} %</p>
+<p>Rentabilidad anualizada: {{ result.rentabilidad_anualizada }} %</p>
+
+<hr>
+
+<h2>Indicadores clave Inversure</h2>
+
+<div style="padding:15px;
+background-color:{% if result.cumple_roi %}#e6f4ea{% else %}#fdecea{% endif %};
+border:2px solid {% if result.cumple_roi %}#2e7d32{% else %}#c62828{% endif %};">
+
+ROI mínimo exigido ({{ result.roi_objetivo }} %)<br>
+Rentabilidad obtenida: <strong>{{ result.rentabilidad_total }} %</strong><br><br>
+
+{% if result.cumple_roi %}
+✔ Operación APTA según criterios Inversure
+{% else %}
+✖ Operación NO APTA
+{% endif %}
+</div>
+
+<p>⚖️ Ratio beneficio / coste: {{ result.ratio_beneficio_coste }}</p>
+<p>💰 Precio mínimo de venta (break-even): {{ result.precio_breakeven }} €</p>
+<p>🛡️ Colchón de seguridad: {{ result.colchon_seguridad }} €</p>
+
+{% endif %}
+
+</body>
+</html>
