@@ -75,9 +75,18 @@ def simulador(request):
             limpieza + ocupas + otros_recurrentes
         )
 
-        # =====================
-        # VENTA
-        # =====================
-        plusvalia = to_float(request.POST.get("plusvalia", 0)          
-        inmobiliaria = to_float(request.POST.get("inmobiliaria"))
-        gestoria_venta = to_float(request.POST.get("gesto
+        
+# =====================
+# VENTA
+# =====================
+plusvalia = to_float(request.POST.get("plusvalia", 0))
+inmobiliaria = to_float(request.POST.get("inmobiliaria", 0))
+gestoria_venta = to_float(request.POST.get("gestoria_venta", 0))
+otros_gastos_venta = to_float(request.POST.get("otros_gastos_venta", 0))
+
+gastos_venta = (
+    plusvalia +
+    inmobiliaria +
+    gestoria_venta +
+    otros_gastos_venta
+)
