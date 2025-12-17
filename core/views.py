@@ -3,50 +3,39 @@ from django.shortcuts import render
 def simulador(request):
     resultado = None
 
-    # 🔹 Entramos aquí si el formulario ha enviado datos
-    if request.POST:
-
-        def to_float(valor):
+    if request.method == "POST":
+        def f(valor):
             try:
                 return float(valor)
             except:
                 return 0.0
 
-        precio_compra = to_float(request.POST.get("precio_compra"))
-        precio_venta = to_float(request.POST.get("precio_venta"))
-        meses = to_float(request.POST.get("meses"))
+        precio_compra = f(request.POST.get("precio_compra"))
+        precio_venta = f(request.POST.get("precio_venta"))
+        meses = f(request.POST.get("meses"))
 
-        gestoria_compra = to_float(request.POST.get("gestoria_compra"))
-        captacion = to_float(request.POST.get("captacion"))
-        otros_adquisicion = to_float(request.POST.get("otros_adquisicion"))
-
-        reforma = to_float(request.POST.get("reforma"))
-        limpieza_inicial = to_float(request.POST.get("limpieza_inicial"))
-        mobiliario = to_float(request.POST.get("mobiliario"))
-        otros_iniciales = to_float(request.POST.get("otros_iniciales"))
-
-        comunidad = to_float(request.POST.get("comunidad"))
-        ibi = to_float(request.POST.get("ibi"))
-        seguros = to_float(request.POST.get("seguros"))
-        suministros = to_float(request.POST.get("suministros"))
-        limpieza_periodica = to_float(request.POST.get("limpieza_periodica"))
-        incidencias = to_float(request.POST.get("incidencias"))
-        otros_recurrentes = to_float(request.POST.get("otros_recurrentes"))
-
-        plusvalia = to_float(request.POST.get("plusvalia"))
-        inmobiliaria = to_float(request.POST.get("inmobiliaria"))
-        gestoria_venta = to_float(request.POST.get("gestoria_venta"))
-        otros_venta = to_float(request.POST.get("otros_venta"))
-
-        gastos_totales = (
-            gestoria_compra + captacion + otros_adquisicion +
-            reforma + limpieza_inicial + mobiliario + otros_iniciales +
-            comunidad + ibi + seguros + suministros +
-            limpieza_periodica + incidencias + otros_recurrentes +
-            plusvalia + inmobiliaria + gestoria_venta + otros_venta
+        gastos = (
+            f(request.POST.get("gestoria_compra")) +
+            f(request.POST.get("captacion")) +
+            f(request.POST.get("otros_adquisicion")) +
+            f(request.POST.get("reforma")) +
+            f(request.POST.get("limpieza_inicial")) +
+            f(request.POST.get("mobiliario")) +
+            f(request.POST.get("otros_iniciales")) +
+            f(request.POST.get("comunidad")) +
+            f(request.POST.get("ibi")) +
+            f(request.POST.get("seguros")) +
+            f(request.POST.get("suministros")) +
+            f(request.POST.get("limpieza_periodica")) +
+            f(request.POST.get("incidencias")) +
+            f(request.POST.get("otros_recurrentes")) +
+            f(request.POST.get("plusvalia")) +
+            f(request.POST.get("inmobiliaria")) +
+            f(request.POST.get("gestoria_venta")) +
+            f(request.POST.get("otros_venta"))
         )
 
-        inversion_total = precio_compra + gastos_totales
+        inversion_total = precio_compra + gastos
         beneficio_bruto = precio_venta - inversion_total
 
         rentabilidad = 0
@@ -64,6 +53,11 @@ def simulador(request):
             "rentabilidad_anual": round(rentabilidad_anual, 2),
         }
 
-    return render(request, "core/simulador.html", {
-        "resultado": resultado
-    })
+    return render(
+        request,
+        "core/simulador.html",
+        {
+            "resultado": resultado,
+            "request": request,  # 🔑 CLAVE
+        }
+    )
