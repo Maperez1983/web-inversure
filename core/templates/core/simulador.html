@@ -145,16 +145,18 @@
     </form>
 
     {% if resultado %}
-    <div class="resultados">
-        <h2>📊 Resultados económicos</h2>
+   <p style="color: green; font-weight: bold;">
+    ✅ El cálculo se ha ejecutado correctamente
+</p>
 
-        <p><strong>Inversión total:</strong> {{ resultado.inversion_total }} €</p>
-        <p><strong>Beneficio bruto:</strong> {{ resultado.beneficio_bruto }} €</p>
-        <p><strong>Rentabilidad total:</strong> {{ resultado.rentabilidad }} %</p>
-        <p><strong>Rentabilidad anualizada:</strong> {{ resultado.rentabilidad_anual }} %</p>
-    </div>
-    {% endif %}
-
+<div class="resultados">
+    <h2>📊 Resultados económicos</h2>
+    <p><strong>Inversión total:</strong> {{ resultado.inversion_total }} €</p>
+    <p><strong>Beneficio bruto:</strong> {{ resultado.beneficio_bruto }} €</p>
+    <p><strong>Rentabilidad total:</strong> {{ resultado.rentabilidad }} %</p>
+    <p><strong>Rentabilidad anualizada:</strong> {{ resultado.rentabilidad_anual }} %</p>
+</div>
+{% endif %}
 </div>
 </body>
 </html>
