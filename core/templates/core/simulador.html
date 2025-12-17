@@ -50,6 +50,12 @@
             text-align: center;
             margin-bottom: 20px;
         }
+        .resultados {
+            margin-top: 40px;
+            padding: 20px;
+            background: #f0f4f8;
+            border-radius: 6px;
+        }
     </style>
 </head>
 
@@ -138,7 +144,17 @@
         <button type="submit">Calcular operación</button>
     </form>
 
+    {% if resultado %}
+    <div class="resultados">
+        <h2>📊 Resultados económicos</h2>
+
+        <p><strong>Inversión total:</strong> {{ resultado.inversion_total }} €</p>
+        <p><strong>Beneficio bruto:</strong> {{ resultado.beneficio_bruto }} €</p>
+        <p><strong>Rentabilidad total:</strong> {{ resultado.rentabilidad }} %</p>
+        <p><strong>Rentabilidad anualizada:</strong> {{ resultado.rentabilidad_anual }} %</p>
+    </div>
+    {% endif %}
+
 </div>
 </body>
 </html>
-
