@@ -1,5 +1,5 @@
 {% extends "core/base.html" %}
-
+{% load humanize %}
 {% block title %}Inversure · Simulador{% endblock %}
 
 {% block content %}
@@ -31,24 +31,52 @@
       </div>
     </div>
 
-    <div class="card">
-      <h2>2️⃣ Gastos de adquisición</h2>
-      <p class="help">ITP (2%), notaría (0,2%) y registro (0,2%) se calcularán automáticamente en la lógica.</p>
-      <div class="grid">
-        <div class="field">
-          <label>Gestoría compra</label>
-          <input type="number" step="0.01" name="gestoria_compra">
-        </div>
-        <div class="field">
-          <label>Captación / reservas</label>
-          <input type="number" step="0.01" name="captacion">
-        </div>
-        <div class="field">
-          <label>Otros gastos adquisición</label>
-          <input type="number" step="0.01" name="otros_adquisicion">
-        </div>
-      </div>
+    <div class="card mb-4">
+    <div class="card-header fw-semibold">
+        2️⃣ Gastos de adquisición
+        <span class="text-muted fw-normal">(notaría y registro automáticos)</span>
     </div>
+
+    <div class="card-body row g-3">
+
+        <div class="col-md-3">
+    <label class="form-label">
+        Notaría (0,20 %)
+    </label>
+    <input type="text"
+           name="notaria"
+           id="notaria"
+           class="form-control"
+           data-euro
+           readonly>
+    <small class="text-muted">Calculado automáticamente</small>
+</div>
+
+<div class="col-md-3">
+    <label class="form-label">
+        Registro (0,20 %)
+    </label>
+    <input type="text"
+           name="registro"
+           id="registro"
+           class="form-control"
+           data-euro
+           readonly>
+    <small class="text-muted">Calculado automáticamente</small>
+</div>
+
+        <div class="col-md-3">
+            <label class="form-label">Gestoría</label>
+            <input type="text" name="gestoria" class="form-control" data-euro>
+        </div>
+
+        <div class="col-md-3">
+            <label class="form-label">Otros gastos</label>
+            <input type="text" name="otros_gastos" class="form-control" data-euro>
+        </div>
+
+    </div>
+</div>
 
     <div class="card">
       <h2>3️⃣ Inversión inicial</h2>
@@ -141,38 +169,38 @@
       <div class="kpis">
         <div class="kpi">
           <div class="label">Inversión total</div>
-          <div class="value">{{ resultado.inversion_total }} €</div>
+          <div class="value">{{ resultado.inversion_total|floatformat:2|intcomma }} €
         </div>
         <div class="kpi">
           <div class="label">Beneficio bruto</div>
-          <div class="value">{{ resultado.beneficio_bruto }} €</div>
+          <div class="value">{{ resultado.inversion_total|floatformat:2|intcomma }} €
         </div>
         <div class="kpi">
           <div class="label">Beneficio partícipes</div>
-          <div class="value">{{ resultado.beneficio_participes }} €</div>
+          <div class="value">{{ resultado.inversion_total|floatformat:2|intcomma }} €
         </div>
         <div class="kpi">
           <div class="label">Rentabilidad total</div>
-          <div class="value">{{ resultado.rentabilidad }} %</div>
+          <div class="value">{{ resultado.rentabilidad|floatformat:2 }} %
         </div>
       </div>
 
       <div class="kpis" style="margin-top:12px;">
         <div class="kpi">
           <div class="label">Rentabilidad anualizada</div>
-          <div class="value">{{ resultado.rentabilidad_anual }} %</div>
+          <div class="value">{{ resultado.rentabilidad|floatformat:2 }} %
         </div>
         <div class="kpi">
           <div class="label">Ratio beneficio / coste</div>
-          <div class="value">{{ resultado.ratio }}</div>
+          <div class="value">{{ resultado.inversion_total|floatformat:2|intcomma }} €
         </div>
         <div class="kpi">
           <div class="label">Break-even</div>
-          <div class="value">{{ resultado.breakeven }} €</div>
+          <div class="value">{{ resultado.inversion_total|floatformat:2|intcomma }} €
         </div>
         <div class="kpi">
           <div class="label">Colchón de seguridad</div>
-          <div class="value">{{ resultado.colchon }} €</div>
+          <div class="value">{{ resultado.inversion_total|floatformat:2|intcomma }} €
         </div>
       </div>
     </div>
