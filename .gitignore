@@ -1,4 +1,17 @@
-.DS_Store
+# Python
 __pycache__/
 *.pyc
-.env
+*.pyo
+*.pyd
+
+# Virtualenv
+.venv/
+env/
+venv/
+
+# Django
+db.sqlite3
+staticfiles/
+
+# Mac
+.DS_Store
