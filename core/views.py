@@ -1,122 +1,304 @@
 from django.shortcuts import render
+from .models import Proyecto
+
+
+def parse_euro(value):
+    if not value:
+        return 0.0
+    return float(
+        value.replace(".", "")
+             .replace(",", ".")
+             .replace("€", "")
+             .replace("\xa0", "")
+             .strip()
+    )
 
 
 def simulador(request):
+    proyectos = Proyecto.objects.all().order_by("-creado", "-id")
     resultado = None
+    proyecto = None
+
+    # === CARGA DE PROYECTO POR NOMBRE (GET) ===
+    nombre_get = request.GET.get("proyecto")
+    if nombre_get:
+        proyecto = Proyecto.objects.filter(nombre=nombre_get).first()
 
     if request.method == "POST":
+        data = request.POST
 
-        # ---------- DATOS PRINCIPALES ----------
-        precio_compra = float(request.POST.get("precio_compra") or 0)
-        precio_venta = float(request.POST.get("precio_venta") or 0)
-        meses = float(request.POST.get("meses") or 0)
-        financiacion = float(request.POST.get("financiacion") or 0)
+        nombre_proyecto = data.get("nombre")
+        proyecto = None
 
-        # ---------- GASTOS ADQUISICIÓN ----------
-        gestoria_compra = float(request.POST.get("gestoria_compra") or 0)
-        captacion = float(request.POST.get("captacion") or 0)
-        otros_adquisicion = float(request.POST.get("otros_adquisicion") or 0)
+        if nombre_proyecto:
+            proyecto = Proyecto.objects.filter(nombre=nombre_proyecto).first()
 
-        # Automáticos (Andalucía)
-        itp = precio_compra * 0.02
-        notaria = precio_compra * 0.002
-        registro = precio_compra * 0.002
+        """
+        ============================================================
+        MOTOR DE CÁLCULO – SIMULADOR INVERSURE (CIERRE DEFINITIVO)
+        ============================================================
 
-        gastos_adquisicion = (
-            itp + notaria + registro +
-            gestoria_compra + captacion + otros_adquisicion
-        )
+        Este bloque define las reglas económicas base del simulador.
+        Estas reglas se consideran ESTABLES y NO deben modificarse
+        sin decisión estratégica expresa.
 
-        # ---------- INVERSIÓN INICIAL ----------
-        reforma = float(request.POST.get("reforma") or 0)
-        limpieza_inicial = float(request.POST.get("limpieza_inicial") or 0)
-        mobiliario = float(request.POST.get("mobiliario") or 0)
-        otros_puesta_marcha = float(request.POST.get("otros_puesta_marcha") or 0)
+        --- DEFINICIONES CLAVE ---
 
-        inversion_inicial = (
-            reforma + limpieza_inicial +
-            mobiliario + otros_puesta_marcha
-        )
+        1) Precio de escritura
+           Valor introducido por el usuario en escritura pública.
 
-        # ---------- GASTOS RECURRENTES ----------
-        comunidad = float(request.POST.get("comunidad") or 0)
-        ibi = float(request.POST.get("ibi") or 0)
-        seguros = float(request.POST.get("seguros") or 0)
-        suministros = float(request.POST.get("suministros") or 0)
-        limpieza_periodica = float(request.POST.get("limpieza_periodica") or 0)
-        ocupas = float(request.POST.get("ocupas") or 0)
-        otros_recurrentes = float(request.POST.get("otros_recurrentes") or 0)
+        2) Gastos automáticos de adquisición (sobre precio escritura):
+           - Notaría: 0,20 % (mínimo 500 €)
+           - Registro: 0,20 % (mínimo 500 €)
+           - ITP: 2 %
 
+        3) Valor de adquisición:
+           Precio de escritura
+           + gastos de adquisición
+           + inversión inicial
+           + gastos recurrentes
+
+           (Los gastos de venta NO forman parte del valor de adquisición)
+
+        4) Precio de venta:
+           Por defecto: media de valoraciones.
+           Puede ser sobrescrito manualmente para simulación de escenarios.
+
+        5) Beneficio base:
+           (Precio de venta – gastos de venta) – valor de adquisición
+
+        6) Gastos de gestión:
+           - Gestión comercial: 5 % del beneficio base
+           - Gestión administrativa: 5 % del beneficio base
+
+           (Solo se aplican sobre beneficio, nunca sobre costes)
+
+        7) Beneficio neto:
+           Beneficio base – gastos de gestión
+
+           El sistema asume beneficio >= 0 en fase de estudio.
+
+        8) ROI (Return on Investment):
+           ROI = beneficio neto / valor de adquisición
+
+        9) Viabilidad:
+           Una operación se considera VIABLE si:
+           ROI >= 15 %
+
+        --- NOTAS IMPORTANTES ---
+
+        - El botón "Calcular" siempre aplica estas reglas.
+        - El formulario no redefine la lógica, solo aporta datos.
+        - UX, escenarios y visualizaciones NO alteran este motor.
+        - Este motor es la base para futuras operaciones reales.
+
+        ============================================================
+        """
+
+        # === DATOS BASE ===
+        # Leer precio_escritura y precio_venta desde los campos del formulario
+        precio_escritura = parse_euro(data.get("precio_propiedad"))
+        precio_venta = parse_euro(data.get("precio_venta_estimado"))
+
+        # === VALORACIONES ===
+        val_idealista = parse_euro(data.get("val_idealista"))
+        val_fotocasa = parse_euro(data.get("val_fotocasa"))
+        val_registradores = parse_euro(data.get("val_registradores"))
+        val_casafari = parse_euro(data.get("val_casafari"))
+        val_tasacion = parse_euro(data.get("val_tasacion"))
+
+        # === GASTOS AUTOMÁTICOS DE ADQUISICIÓN (solo sobre precio_escritura) ===
+        notaria = max(precio_escritura * 0.002, 500)
+        registro = max(precio_escritura * 0.002, 500)
+        itp = precio_escritura * 0.02
+
+        # === GASTOS MANUALES ===
+        otros_gastos_compra = parse_euro(data.get("otros_gastos_compra"))
+
+        # Inversión inicial
+        reforma = parse_euro(data.get("reforma"))
+        limpieza_inicial = parse_euro(data.get("limpieza_inicial"))
+        mobiliario = parse_euro(data.get("mobiliario"))
+        otros_puesta_marcha = parse_euro(data.get("otros_puesta_marcha"))
+        inversion_inicial = reforma + limpieza_inicial + mobiliario + otros_puesta_marcha
+
+        # Gastos recurrentes
+        comunidad = parse_euro(data.get("comunidad"))
+        ibi = parse_euro(data.get("ibi"))
+        seguros = parse_euro(data.get("seguros"))
+        suministros = parse_euro(data.get("suministros"))
+        limpieza_periodica = parse_euro(data.get("limpieza_periodica"))
+        ocupas = parse_euro(data.get("ocupas"))
         gastos_recurrentes = (
-            comunidad + ibi + seguros + suministros +
-            limpieza_periodica + ocupas + otros_recurrentes
+            comunidad
+            + ibi
+            + seguros
+            + suministros
+            + limpieza_periodica
+            + ocupas
         )
 
-        # ---------- GASTOS DE VENTA ----------
-        plusvalia = float(request.POST.get("plusvalia") or 0)
-        inmobiliaria = float(request.POST.get("inmobiliaria") or 0)
-        gestoria_venta = float(request.POST.get("gestoria_venta") or 0)
-        otros_venta = float(request.POST.get("otros_venta") or 0)
-
-        gastos_venta = (
-            plusvalia + inmobiliaria +
-            gestoria_venta + otros_venta
+        # === VALOR DE ADQUISICIÓN ===
+        valor_adquisicion = (
+            precio_escritura
+            + notaria
+            + registro
+            + itp
+            + otros_gastos_compra
+            + inversion_inicial
+            + gastos_recurrentes
         )
 
-        # ---------- INVERSIÓN TOTAL ----------
-        inversion_total = (
-            precio_compra +
-            gastos_adquisicion +
-            inversion_inicial +
-            gastos_recurrentes +
-            gastos_venta
-        )
+        # === GASTOS DE VENTA ===
+        plusvalia = parse_euro(data.get("plusvalia"))
+        inmobiliaria = parse_euro(data.get("inmobiliaria"))
+        gastos_venta = plusvalia + inmobiliaria
 
-        # ---------- BENEFICIOS ----------
-        beneficio_bruto = precio_venta - inversion_total
+        # === BENEFICIO BASE ===
+        beneficio_base = (precio_venta - gastos_venta) - valor_adquisicion
 
-        beneficio_inversure = beneficio_bruto * 0.40
-        beneficio_participes = beneficio_bruto * 0.60
+        # === GESTIÓN COMERCIAL Y ADMINISTRACIÓN ===
+        gestion_comercial = beneficio_base * 0.05
+        gestion_administracion = beneficio_base * 0.05
 
-        # ---------- RENTABILIDADES ----------
-        rentabilidad_total = (
-            (beneficio_bruto / inversion_total) * 100
-            if inversion_total > 0 else 0
-        )
+        # === BENEFICIO NETO ===
+        beneficio_neto = beneficio_base - gestion_comercial - gestion_administracion
 
-        rentabilidad_anual = (
-            rentabilidad_total * (12 / meses)
-            if meses > 0 else 0
-        )
+        # === ROI ===
+        roi = (beneficio_neto / valor_adquisicion) * 100 if valor_adquisicion > 0 else 0
 
-        roi = rentabilidad_total
+        # === VIABILIDAD ===
+        viable = roi >= 15
 
-        # ---------- INDICADORES DE CONTROL ----------
-        ratio_beneficio_coste = (
-            beneficio_bruto / inversion_total
-            if inversion_total > 0 else 0
-        )
+        # === MÉTRICAS PRO (ANÁLISIS INVERSOR) ===
 
-        breakeven = inversion_total
-        colchon_seguridad = precio_venta - breakeven
+        # Margen neto sobre precio de venta
+        margen_neto = (beneficio_neto / precio_venta) * 100 if precio_venta > 0 else 0
 
-        operacion_apta = roi >= 15
+        # === MÉTRICAS INVERSOR AVANZADAS ===
+        # Colchón de seguridad (%)
+        # ¿Cuánto puede bajar el precio de venta antes de perder dinero?
+        colchon_seguridad = (beneficio_neto / precio_venta) * 100 if precio_venta > 0 else 0
 
-        # ---------- RESULTADO FINAL ----------
+        # Ratio € ganado por € invertido
+        # Ej: 0,15 € por cada € invertido
+        ratio_euro = (beneficio_neto / valor_adquisicion) if valor_adquisicion > 0 else 0
+
+        # Precio mínimo de venta para cumplir ROI mínimo del 15 %
+        # Beneficio mínimo exigido = 15 % del valor de adquisición
+        beneficio_minimo = valor_adquisicion * 0.15
+
+        # Precio mínimo de venta = adquisición + gastos de venta + beneficio mínimo
+        precio_minimo_venta = valor_adquisicion + gastos_venta + beneficio_minimo
+
         resultado = {
-            "inversion_total": round(inversion_total, 2),
-            "beneficio_bruto": round(beneficio_bruto, 2),
-            "beneficio_inversure": round(beneficio_inversure, 2),
-            "beneficio_participes": round(beneficio_participes, 2),
-            "rentabilidad": round(rentabilidad_total, 2),
-            "rentabilidad_anual": round(rentabilidad_anual, 2),
+            "valor_adquisicion": round(valor_adquisicion, 2),
+            "precio_venta": round(precio_venta, 2),
+            "beneficio_neto": round(beneficio_neto, 2),
             "roi": round(roi, 2),
-            "ratio": round(ratio_beneficio_coste, 3),
-            "breakeven": round(breakeven, 2),
-            "colchon": round(colchon_seguridad, 2),
-            "apta": operacion_apta,
+            "viable": viable,
+
+            # Métricas inversor
+            "margen_neto": round(margen_neto, 2),
+            "colchon_seguridad": round(colchon_seguridad, 2),
+            "ratio_euro": round(ratio_euro, 3),
+            "precio_minimo_venta": round(precio_minimo_venta, 2),
         }
 
-    return render(request, "core/simulador.html", {
-        "resultado": resultado
-    })
+        # === GUARDAR / ACTUALIZAR PROYECTO (CLAVE = NOMBRE) ===
+        if nombre_proyecto:
+            estado_post = data.get("estado", "ESTUDIO")
+            if proyecto:
+                # Actualizar proyecto existente
+                proyecto.precio_propiedad = precio_escritura
+                proyecto.precio_compra_inmueble = valor_adquisicion
+                proyecto.precio_venta_estimado = precio_venta
+                proyecto.notaria = notaria
+                proyecto.registro = registro
+                proyecto.itp = itp
+                proyecto.beneficio_neto = beneficio_neto
+                proyecto.roi = roi
+
+                # Valoraciones
+                proyecto.val_idealista = val_idealista
+                proyecto.val_fotocasa = val_fotocasa
+                proyecto.val_registradores = val_registradores
+                proyecto.val_casafari = val_casafari
+                proyecto.val_tasacion = val_tasacion
+
+                # Gastos manuales y persistencia completa del estudio
+                proyecto.otros_gastos_compra = otros_gastos_compra
+
+                # Inversión inicial
+                proyecto.reforma = reforma
+                proyecto.limpieza_inicial = limpieza_inicial
+                proyecto.mobiliario = mobiliario
+                proyecto.otros_puesta_marcha = otros_puesta_marcha
+
+                # Gastos recurrentes
+                proyecto.comunidad = comunidad
+                proyecto.ibi = ibi
+                proyecto.seguros = seguros
+                proyecto.suministros = suministros
+                proyecto.limpieza_periodica = limpieza_periodica
+                proyecto.ocupas = ocupas
+
+                # Gastos de venta
+                proyecto.plusvalia = plusvalia
+                proyecto.inmobiliaria = inmobiliaria
+
+                # Estado proyecto
+                proyecto.estado = estado_post
+
+                proyecto.save()
+            else:
+                # Crear nuevo proyecto
+                proyecto = Proyecto.objects.create(
+                    nombre=nombre_proyecto,
+                    precio_propiedad=precio_escritura,
+                    precio_compra_inmueble=valor_adquisicion,
+                    precio_venta_estimado=precio_venta,
+                    notaria=notaria,
+                    registro=registro,
+                    itp=itp,
+                    beneficio_neto=beneficio_neto,
+                    roi=roi,
+                    val_idealista=val_idealista,
+                    val_fotocasa=val_fotocasa,
+                    val_registradores=val_registradores,
+                    val_casafari=val_casafari,
+                    val_tasacion=val_tasacion,
+                    otros_gastos_compra=otros_gastos_compra,
+                    reforma=reforma,
+                    limpieza_inicial=limpieza_inicial,
+                    mobiliario=mobiliario,
+                    otros_puesta_marcha=otros_puesta_marcha,
+                    comunidad=comunidad,
+                    ibi=ibi,
+                    seguros=seguros,
+                    suministros=suministros,
+                    limpieza_periodica=limpieza_periodica,
+                    ocupas=ocupas,
+                    plusvalia=plusvalia,
+                    inmobiliaria=inmobiliaria,
+                    estado=estado_post,
+                )
+
+    return render(
+        request,
+        "core/simulador.html",
+        {
+            "proyectos": proyectos,
+            "resultado": resultado,
+            "proyecto": proyecto,
+        }
+    )
+
+
+def lista_proyectos(request):
+    proyectos = Proyecto.objects.all().order_by("-fecha", "-id")
+    return render(
+        request,
+        "core/lista_proyectos.html",
+        {"proyectos": proyectos},
+    )

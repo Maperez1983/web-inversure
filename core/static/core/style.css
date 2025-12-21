@@ -1,207 +1,125 @@
-:root{
-  --bg: #f4f6f8;
-  --card: #ffffff;
-  --text: #111827;
-  --muted: #6b7280;
-  --border: #e5e7eb;
-  --brand: #122135;
-  --brand2: #d7b04c;
+/* ===== RESET FORMULARIOS (Bootstrap-safe) ===== */
+
+.form-control,
+.form-select{
+  height: auto;
+  padding: 0.5rem 0.75rem;
+  font-size: 1rem;
+  line-height: 1.5;
+  box-sizing: border-box;
 }
 
-*{ box-sizing: border-box; }
-
-body{
-  margin: 0;
-  font-family: Arial, sans-serif;
-  background: var(--bg);
-  color: var(--text);
+.form-control-lg,
+.form-select-lg{
+  height: calc(1.5em + 1rem + 2px);
+  padding: 0.5rem 1rem;
+  font-size: 1.1rem;
+  line-height: 1.5;
 }
 
-a{ color: inherit; text-decoration: none; }
-
-.container{
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: 24px;
-}
-
-/* Header */
-.topbar{
-  background: var(--card);
-  border-bottom: 1px solid var(--border);
-  position: sticky;
-  top: 0;
-  z-index: 10;
-}
-
-.topbar-inner{
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 14px 24px;
-  max-width: 1100px;
-  margin: 0 auto;
-}
-
-.brand{
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
+/* Tamaño logo Inversure */
 .brand img{
-  height: 46px;
+  height: 90px;
   width: auto;
   display: block;
 }
 
-.brand small{
-  color: var(--muted);
-  display: block;
-  font-size: 12px;
-  margin-top: 2px;
-}
-
-.nav{
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.nav a{
-  padding: 8px 10px;
-  border-radius: 8px;
-  color: var(--muted);
-}
-
-.nav a:hover{
-  background: #f3f4f6;
-  color: var(--text);
-}
-
-.page-title{
-  margin: 18px 0 6px;
-  font-size: 26px;
-}
-
-.page-subtitle{
-  margin: 0 0 18px;
-  color: var(--muted);
-}
-
-/* Cards / Sections */
-.card{
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 18px;
-  margin: 14px 0;
-}
-
-.card h2{
-  margin: 0 0 10px;
-  font-size: 18px;
-}
-
-.help{
-  margin: 0 0 12px;
-  color: var(--muted);
-  font-size: 13px;
-}
-
-/* Form */
-.grid{
+/* ===== HEADER LAYOUT ===== */
+.topbar-inner{
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 14px;
-}
-
-@media (max-width: 820px){
-  .grid{ grid-template-columns: 1fr; }
-  .topbar-inner{ padding: 14px 16px; }
-  .container{ padding: 16px; }
-}
-
-.field label{
-  display: block;
-  font-weight: 700;
-  margin-bottom: 6px;
-  font-size: 13px;
-}
-
-.field input{
-  width: 100%;
-  padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  outline: none;
-}
-
-.field input:focus{
-  border-color: #c7d2fe;
-  box-shadow: 0 0 0 3px rgba(99,102,241,.12);
-}
-
-.actions{
-  display: flex;
-  gap: 12px;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  flex-wrap: wrap;
 }
 
-.btn{
-  background: var(--brand);
-  color: white;
-  border: none;
-  padding: 11px 16px;
-  border-radius: 10px;
-  cursor: pointer;
-  font-weight: 700;
+.brand{
+  justify-self: center;
 }
 
-.btn:hover{ opacity: .92; }
-
-.pill{
-  display: inline-block;
-  padding: 6px 10px;
-  border-radius: 999px;
-  background: #fff7e6;
-  border: 1px solid #ffe0a3;
-  color: #7a5b00;
-  font-weight: 700;
-  font-size: 12px;
+.topbar-right{
+  justify-self: end;
 }
+/* ===== FORMULARIO · AJUSTE FINO (Opción C) ===== */
 
-/* Results */
-.kpis{
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 12px;
-}
-
-@media (max-width: 1000px){
-  .kpis{ grid-template-columns: repeat(2, 1fr); }
-}
-
-.kpi{
-  border: 1px solid var(--border);
+/* Cards: un poco más de aire y orden */
+.card{
   border-radius: 12px;
-  padding: 12px;
-  background: #fafafa;
 }
 
-.kpi .label{
-  color: var(--muted);
-  font-size: 12px;
-  margin-bottom: 6px;
+.card-body{
+  padding: 1.25rem 1.25rem;
 }
 
-.kpi .value{
-  font-size: 18px;
-  font-weight: 800;
+/* Ritmo vertical consistente entre filas */
+.card-body .row{
+  row-gap: 0.75rem;
 }
 
-.good{ border-color: #86efac; background: #f0fdf4; }
-.bad{ border-color: #fca5a5; background: #fef2f2; }
+/* Labels más discretos */
+.form-label{
+  font-size: 0.9rem;
+  color: #6b7280; /* gris suave */
+  margin-bottom: 0.25rem;
+}
 
+/* Inputs normales un poco más compactos */
+.form-control:not(.form-control-lg),
+.form-select:not(.form-select-lg){
+  padding: 0.45rem 0.7rem;
+  font-size: 0.95rem;
+}
+
+/* Inputs clave (LG) destacan sin exagerar */
+.form-control-lg,
+.form-select-lg{
+  font-size: 1.05rem;
+}
+
+/* Badges de sección más elegantes */
+.card h5 .badge{
+  font-weight: 500;
+  opacity: 0.9;
+}
+
+/* ===== CABECERAS DE TARJETAS ===== */
+.card h5{
+  background: #122135; /* Azul Inversure */
+  color: #ffffff;
+  padding: 0.75rem 1rem;
+  border-radius: 10px;
+  margin: -1.25rem -1.25rem 1rem -1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.card h5 .badge{
+  background: rgba(255,255,255,0.15);
+  color: #ffffff;
+}
+
+/* ===== CONTENEDOR EXTERIOR FORMULARIO ===== */
+.container.mt-4{
+  background: #f8fafc;
+  padding: 2rem 2rem 1rem;
+  border-radius: 16px;
+}
+/* ===============================
+   RESULTADO · TARJETA INVERSOR
+   Indicadores visuales de viabilidad
+=============================== */
+
+.resultado-inversor{
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+/* Operación viable */
+.resultado-viable{
+  border-left: 6px solid #198754; /* verde Bootstrap */
+  box-shadow: 0 0 0 1px rgba(25,135,84,0.15);
+}
+
+/* Operación no viable */
+.resultado-no-viable{
+  border-left: 6px solid #dc3545; /* rojo Bootstrap */
+  box-shadow: 0 0 0 1px rgba(220,53,69,0.15);
+}

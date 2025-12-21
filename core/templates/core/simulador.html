@@ -1,243 +1,645 @@
 {% extends "core/base.html" %}
-{% load humanize %}
-{% block title %}Inversure · Simulador{% endblock %}
-
+{% load static %}
 {% block content %}
-  <h1 class="page-title">Simulador de operaciones</h1>
-  <p class="page-subtitle">Introduce los datos para calcular rentabilidad y métricas clave.</p>
 
-  <form method="post">
-    {% csrf_token %}
+<div class="container mt-4">
+    <h1 class="mb-1">Simulador de operaciones</h1>
+    <p class="text-muted mb-4">
+        Introduce los datos para calcular rentabilidad y métricas clave.
+    </p>
 
-    <div class="card">
-      <h2>📍 Datos del inmueble</h2>
 
-      <div class="grid">
-        <div class="field">
-          <label>Precio de compra del inmueble</label>
-          <input type="number" step="0.01" name="precio_inmueble">
+<form method="post">
+{% csrf_token %}
+
+
+    <!-- ===============================
+         DATOS DEL INMUEBLE
+    ================================ -->
+    <div class="card mb-4 shadow-sm border-0">
+        <div class="card-body">
+            <h5 class="mb-3 d-flex align-items-center gap-2">
+                <span>📍</span>
+                <span>Datos del inmueble</span>
+            </h5>
+
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label text-muted">
+                        Nombre del proyecto (identificador)
+                    </label>
+                    <input type="text" name="nombre" class="form-control form-control-lg"
+                           value="{{ proyecto.nombre|default:'' }}">
+                </div>
+
+                <div class="col-md-6 mb-3">
+                    <label class="form-label text-muted">
+                        Estado del proyecto
+                    </label>
+                    <select name="estado" class="form-select form-select-lg">
+                        <option value="ESTUDIO"
+                            {% if proyecto.estado == "ESTUDIO" or not proyecto.estado %}selected{% endif %}>
+                            En estudio
+                        </option>
+                        <option value="APROBADO"
+                            {% if proyecto.estado == "APROBADO" %}selected{% endif %}>
+                            Aprobado
+                        </option>
+                        <option value="DESCARTADO"
+                            {% if proyecto.estado == "DESCARTADO" %}selected{% endif %}>
+                            Descartado
+                        </option>
+                    </select>
+                </div>
+
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Fecha</label>
+                    <input type="date" name="fecha" class="form-control form-control-lg"
+                           value="{{ proyecto.fecha|date:'Y-m-d'|default:'' }}">
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">
+                      Precio compra inmueble
+                      <span class="ms-1 text-muted" title="Calculado automáticamente en base a los datos introducidos">ℹ️</span>
+                    </label>
+                    <input type="text" name="precio_compra_inmueble" class="form-control form-control-lg"
+                           readonly title="Calculado automáticamente en base a los datos introducidos"
+                           value="{{ proyecto.precio_compra_inmueble|default:'' }}">
+                </div>
+
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Precio estimado de venta</label>
+                    <input type="text" name="precio_venta_estimado" class="form-control form-control-lg"
+                           data-euro="true" data-autofill="true"
+                           value="{{ proyecto.precio_venta_estimado|default:'' }}">
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6 mb-3 d-flex gap-2">
+                    <div class="flex-grow-1">
+                        <label class="form-label">Referencia catastral</label>
+                        <input type="text" name="ref_catastral" class="form-control form-control-lg">
+                    </div>
+                    <div class="align-self-end">
+                        <button type="button"
+                                id="btnCatastro"
+                                class="btn btn-sm px-2 d-flex align-items-center"
+                                style="background-color:#122135; color:white;"
+                                onclick="verCatastro()"
+                                title="Abrir Catastro">
+                            <img src="{% static 'core/catastro.png' %}"
+                                 alt="Catastro"
+                                 style="height:18px; width:auto; filter:brightness(0) invert(1);">
+                        </button>
+                    </div>
+                </div>
+
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Valor de referencia catastral</label>
+                    <input type="number" step="0.01" name="valor_referencia" class="form-control">
+                </div>
+            </div>
         </div>
-
-        <div class="field">
-          <label>Precio estimado de venta</label>
-          <input type="number" step="0.01" name="precio_venta_estimado">
-        </div>
-
-        <div class="field">
-          <label>Referencia catastral</label>
-          <div style="display:flex; gap:8px;">
-            <input type="text" name="ref_catastral">
-            <a
-              href="https://www.sedecatastro.gob.es"
-              target="_blank"
-              class="btn"
-              style="white-space:nowrap; padding:8px 12px; font-size:13px;"
-            >
-              Ver Catastro
-            </a>
-          </div>
-        </div>
-
-        <div class="field">
-          <label>Valor de referencia catastral</label>
-          <input type="number" step="0.01" name="valor_referencia">
-        </div>
-      </div>
     </div>
 
-    <div class="card">
-      <h2>1️⃣ Datos principales</h2>
-      <div class="grid">
-        <div class="field">
-          <label>Precio compra</label>
-          <input type="number" step="0.01" name="precio_compra">
+    <!-- ===============================
+         DATOS PRINCIPALES
+    ================================ -->
+    <div class="card mb-4 shadow-sm border-0">
+        <div class="card-body">
+            <h5 class="mb-3">
+                <span class="badge rounded-pill bg-secondary me-2 px-3 py-2">1</span>
+                Datos principales
+            </h5>
+
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Precio de escritura</label>
+                    <input type="text" name="precio_propiedad" class="form-control form-control-lg"
+                           value="{{ proyecto.precio_propiedad|default:'' }}">
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Meses de la operación</label>
+                    <input type="number" name="meses" class="form-control">
+                </div>
+
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">% Financiación</label>
+                    <input type="number" step="0.01" name="financiacion_pct" class="form-control">
+                </div>
+            </div>
         </div>
-        <div class="field">
-          <label>Precio venta</label>
-          <input type="number" step="0.01" name="precio_venta">
-        </div>
-        <div class="field">
-          <label>Meses de la operación</label>
-          <input type="number" step="1" name="meses">
-        </div>
-        <div class="field">
-          <label>% Financiación</label>
-          <input type="number" step="0.01" name="financiacion">
-        </div>
-      </div>
     </div>
 
-    <div class="card">
-      <h2>2️⃣ Gastos de adquisición</h2>
-      <p class="page-subtitle">(notaría y registro automáticos)</p>
+    <!-- ===============================
+         GASTOS DE ADQUISICIÓN
+    ================================ -->
+    <div class="card mb-4 shadow-sm border-0">
+        <div class="card-body">
+            <h5 class="mb-3">
+                <span class="badge rounded-pill bg-secondary me-2 px-3 py-2">2</span>
+                Gastos de adquisición
+            </h5>
 
-      <div class="grid">
-
-        <div class="field">
-          <label>Notaría (0,20 %)</label>
-          <input type="text" name="notaria" id="notaria" data-euro readonly>
-          <small class="text-muted">Calculado automáticamente</small>
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">
+                      Notaría
+                      <span class="ms-1 text-muted" title="Calculado automáticamente en base a los datos introducidos">ℹ️</span>
+                    </label>
+                    <input type="text" name="notaria" class="form-control form-control-lg" data-euro="true" readonly title="Calculado automáticamente en base a los datos introducidos"
+                           value="{{ proyecto.notaria|default:'' }}">
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">
+                      Registro
+                      <span class="ms-1 text-muted" title="Calculado automáticamente en base a los datos introducidos">ℹ️</span>
+                    </label>
+                    <input type="text" name="registro" class="form-control form-control-lg" data-euro="true" readonly title="Calculado automáticamente en base a los datos introducidos"
+                           value="{{ proyecto.registro|default:'' }}">
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">
+                      ITP
+                      <span class="ms-1 text-muted" title="Calculado automáticamente en base a los datos introducidos">ℹ️</span>
+                    </label>
+                    <input type="text" name="itp" class="form-control form-control-lg" data-euro="true" readonly title="Calculado automáticamente en base a los datos introducidos"
+                           value="{{ proyecto.itp|default:'' }}">
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Otros gastos</label>
+                    <input type="text" name="otros_gastos_compra" class="form-control" data-euro="true"
+                           value="{{ proyecto.otros_gastos_compra|default:'' }}">
+                </div>
+            </div>
         </div>
-
-        <div class="field">
-          <label>Registro (0,20 %)</label>
-          <input type="text" name="registro" id="registro" data-euro readonly>
-          <small class="text-muted">Calculado automáticamente</small>
-        </div>
-
-        <div class="field">
-          <label>ITP</label>
-          <input type="text" name="itp" data-euro>
-        </div>
-
-        <div class="field">
-          <label>Gestoría</label>
-          <input type="text" name="gestoria" data-euro>
-        </div>
-
-        <div class="field">
-          <label>Otros gastos</label>
-          <input type="text" name="otros_gastos" data-euro>
-        </div>
-
-      </div>
     </div>
 
-    <div class="card">
-      <h2>3️⃣ Inversión inicial</h2>
-      <div class="grid">
-        <div class="field">
-          <label>Reforma</label>
-          <input type="number" step="0.01" name="reforma">
+    <!-- ===============================
+         INVERSIÓN INICIAL
+    ================================ -->
+    <div class="card mb-4 shadow-sm border-0">
+        <div class="card-body">
+            <h5 class="mb-3">
+                <span class="badge rounded-pill bg-secondary me-2 px-3 py-2">4</span>
+                Inversión inicial
+            </h5>
+
+            <div class="row">
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">Reforma</label>
+                    <input type="text" name="reforma" class="form-control form-control-lg" data-euro="true">
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">Limpieza inicial</label>
+                    <input type="text" name="limpieza_inicial" class="form-control form-control-lg" data-euro="true">
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">Mobiliario</label>
+                    <input type="text" name="mobiliario" class="form-control form-control-lg" data-euro="true">
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">Otros puesta en marcha</label>
+                    <input type="text" name="otros_puesta_marcha" class="form-control form-control-lg" data-euro="true">
+                </div>
+            </div>
         </div>
-        <div class="field">
-          <label>Limpieza inicial</label>
-          <input type="number" step="0.01" name="limpieza_inicial">
-        </div>
-        <div class="field">
-          <label>Mobiliario</label>
-          <input type="number" step="0.01" name="mobiliario">
-        </div>
-        <div class="field">
-          <label>Otros puesta en marcha</label>
-          <input type="number" step="0.01" name="otros_puesta_marcha">
-        </div>
-      </div>
     </div>
 
-    <div class="card">
-      <h2>4️⃣ Gastos recurrentes</h2>
-      <div class="grid">
-        <div class="field">
-          <label>Comunidad</label>
-          <input type="number" step="0.01" name="comunidad">
+    <!-- ===============================
+         GASTOS RECURRENTES
+    ================================ -->
+    <div class="card mb-4 shadow-sm border-0">
+        <div class="card-body">
+            <h5 class="mb-3">
+                <span class="badge rounded-pill bg-secondary me-2 px-3 py-2">5</span>
+                Gastos recurrentes
+            </h5>
+
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Comunidad</label>
+                    <input type="text" name="comunidad" class="form-control" data-euro="true">
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">IBI</label>
+                    <input type="text" name="ibi" class="form-control" data-euro="true">
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Seguros</label>
+                    <input type="text" name="seguros" class="form-control" data-euro="true">
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Suministros</label>
+                    <input type="text" name="suministros" class="form-control" data-euro="true">
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Limpieza periódica</label>
+                    <input type="text" name="limpieza_periodica" class="form-control" data-euro="true">
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Ocupas</label>
+                    <input type="text" name="ocupas" class="form-control" data-euro="true">
+                </div>
+            </div>
         </div>
-        <div class="field">
-          <label>IBI</label>
-          <input type="number" step="0.01" name="ibi">
-        </div>
-        <div class="field">
-          <label>Seguros</label>
-          <input type="number" step="0.01" name="seguros">
-        </div>
-        <div class="field">
-          <label>Suministros</label>
-          <input type="number" step="0.01" name="suministros">
-        </div>
-        <div class="field">
-          <label>Limpieza periódica</label>
-          <input type="number" step="0.01" name="limpieza_periodica">
-        </div>
-        <div class="field">
-          <label>Ocupas / incidencias</label>
-          <input type="number" step="0.01" name="ocupas">
-        </div>
-        <div class="field">
-          <label>Otros recurrentes</label>
-          <input type="number" step="0.01" name="otros_recurrentes">
-        </div>
-      </div>
     </div>
 
-    <div class="card">
-      <h2>5️⃣ Gastos de venta</h2>
-      <div class="grid">
-        <div class="field">
-          <label>Plusvalía municipal</label>
-          <input type="number" step="0.01" name="plusvalia">
-        </div>
-        <div class="field">
-          <label>Inmobiliaria</label>
-          <input type="number" step="0.01" name="inmobiliaria">
-        </div>
-        <div class="field">
-          <label>Gestoría venta</label>
-          <input type="number" step="0.01" name="gestoria_venta">
-        </div>
-        <div class="field">
-          <label>Otros gastos venta</label>
-          <input type="number" step="0.01" name="otros_venta">
-        </div>
+    <!-- ===============================
+         GASTOS DE VENTA
+    ================================ -->
+    <div class="card mb-4 shadow-sm border-0">
+        <div class="card-body">
+            <h5 class="mb-3">
+                <span class="badge rounded-pill bg-secondary me-2 px-3 py-2">6</span>
+                Gastos de venta
+            </h5>
 
-        <div class="field">
-          <label>Coste administración (0,5 %)</label>
-          <input type="text" name="coste_administracion" data-euro readonly>
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Plusvalía</label>
+                    <input type="text" name="plusvalia" class="form-control" data-euro="true">
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Inmobiliaria</label>
+                    <input type="text" name="inmobiliaria" class="form-control" data-euro="true">
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Gestión comercial</label>
+                    <input type="text" name="gestion_comercial" class="form-control" data-euro="true">
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Gestión administración</label>
+                    <input type="text" name="gestion_administracion" class="form-control" data-euro="true">
+                </div>
+            </div>
         </div>
-
-        <div class="field">
-          <label>Coste comercialización (0,5 %)</label>
-          <input type="text" name="coste_comercializacion" data-euro readonly>
-        </div>
-      </div>
     </div>
 
-    <div class="actions">
-      <button class="btn" type="submit">Calcular operación</button>
-      <span class="pill">ROI mínimo objetivo: 15%</span>
+    <!-- ===============================
+         VALORACIONES
+    ================================ -->
+    <div class="card mb-4 shadow-sm border-0">
+        <div class="card-body">
+            <h5 class="mb-3">
+                <span class="badge rounded-pill bg-secondary me-2 px-3 py-2">7</span>
+                Valoraciones
+            </h5>
+
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Idealista</label>
+                    <input type="text" name="val_idealista" class="form-control" data-euro="true" data-valuation="true"
+                           value="{{ proyecto.val_idealista|default:'' }}">
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Fotocasa</label>
+                    <input type="text" name="val_fotocasa" class="form-control" data-euro="true" data-valuation="true"
+                           value="{{ proyecto.val_fotocasa|default:'' }}">
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Registradores</label>
+                    <input type="text" name="val_registradores" class="form-control" data-euro="true" data-valuation="true"
+                           value="{{ proyecto.val_registradores|default:'' }}">
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Casafari</label>
+                    <input type="text" name="val_casafari" class="form-control" data-euro="true" data-valuation="true"
+                           value="{{ proyecto.val_casafari|default:'' }}">
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Tasación</label>
+                    <input type="text" name="val_tasacion" class="form-control" data-euro="true" data-valuation="true"
+                           value="{{ proyecto.val_tasacion|default:'' }}">
+                </div>
+            </div>
+
+            <div class="row mt-3">
+                <div class="col-md-12">
+                    <label class="form-label fw-semibold">
+                      Media de valoraciones
+                      <span class="ms-1 text-muted" title="Calculado automáticamente en base a los datos introducidos">ℹ️</span>
+                    </label>
+                    <input type="text" name="media_valoraciones" class="form-control form-control-lg" readonly title="Calculado automáticamente en base a los datos introducidos"
+                           value="{{ proyecto.media_valoraciones|default:'' }}">
+                </div>
+            </div>
+        </div>
     </div>
-  </form>
 
-  {% if resultado %}
-    <div class="card">
-      <h2>📊 Resultados</h2>
-
-      <div class="kpis">
-        <div class="kpi">
-          <div class="label">Inversión total</div>
-          <div class="value">{{ resultado.inversion_total|floatformat:2|intcomma }} €
-        </div>
-        <div class="kpi">
-          <div class="label">Beneficio bruto</div>
-          <div class="value">{{ resultado.inversion_total|floatformat:2|intcomma }} €
-        </div>
-        <div class="kpi">
-          <div class="label">Beneficio partícipes</div>
-          <div class="value">{{ resultado.inversion_total|floatformat:2|intcomma }} €
-        </div>
-        <div class="kpi">
-          <div class="label">Rentabilidad total</div>
-          <div class="value">{{ resultado.rentabilidad|floatformat:2 }} %
-        </div>
-      </div>
-
-      <div class="kpis" style="margin-top:12px;">
-        <div class="kpi">
-          <div class="label">Rentabilidad anualizada</div>
-          <div class="value">{{ resultado.rentabilidad|floatformat:2 }} %
-        </div>
-        <div class="kpi">
-          <div class="label">Ratio beneficio / coste</div>
-          <div class="value">{{ resultado.inversion_total|floatformat:2|intcomma }} €
-        </div>
-        <div class="kpi">
-          <div class="label">Break-even</div>
-          <div class="value">{{ resultado.inversion_total|floatformat:2|intcomma }} €
-        </div>
-        <div class="kpi">
-          <div class="label">Colchón de seguridad</div>
-          <div class="value">{{ resultado.inversion_total|floatformat:2|intcomma }} €
-        </div>
-      </div>
+    <!-- ===============================
+         ACCIONES
+    ================================ -->
+    <div class="d-flex justify-content-end mb-4">
+        <button type="submit" class="btn btn-dark">Calcular</button>
     </div>
-  {% endif %}
+
+    <!-- ===============================
+         RESULTADOS
+    ================================ -->
+{% if resultado %}
+<div class="card mb-4 shadow-sm border-0 resultado-inversor {% if resultado.viable %}resultado-viable{% else %}resultado-no-viable{% endif %}">
+        <div class="card-body">
+            <h5 class="mb-3">
+                <span class="badge rounded-pill bg-secondary me-2 px-3 py-2">8</span>
+                Resultado
+            </h5>
+
+            <div class="row">
+                <div class="col-md-4">
+                    <strong>Valor de adquisición</strong><br>
+                    {{ resultado.valor_adquisicion }} €
+                </div>
+                <div class="col-md-4">
+                    <strong>Beneficio neto</strong><br>
+                    {{ resultado.beneficio_neto }} €
+                </div>
+                <div class="col-md-4">
+                    <strong>ROI</strong><br>
+                    {{ resultado.roi }} %
+                </div>
+                <div class="col-md-4 d-flex align-items-center">
+                    {% if resultado.viable %}
+                        <span class="badge bg-success fs-6 px-3 py-2">
+                            ✔ Operación viable (ROI ≥ 15%)
+                        </span>
+                    {% else %}
+                        <span class="badge bg-danger fs-6 px-3 py-2">
+                            ✖ Operación no viable (ROI < 15%)
+                        </span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <hr class="my-3">
+
+            <h6 class="text-muted mb-2">Análisis inversor</h6>
+
+            <div class="row">
+                <div class="col-md-4">
+                    <strong>Margen neto</strong><br>
+                    {{ resultado.margen_neto }} %
+                </div>
+
+                <div class="col-md-4">
+                    <strong>Colchón de seguridad</strong><br>
+                    {{ resultado.colchon_seguridad }} %
+                </div>
+
+                <div class="col-md-4">
+                    <strong>€ ganados por € invertido</strong><br>
+                    {{ resultado.ratio_euro }} €
+                </div>
+
+                <div class="col-md-4">
+                    <strong>Precio mínimo de venta</strong><br>
+                    {{ resultado.precio_minimo_venta }} €
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</form>
+</div>
+
+
+<script>
+function formatEuro(value) {
+    if (value === "" || value === null || isNaN(value)) return "";
+    return new Intl.NumberFormat("es-ES", {
+        style: "currency",
+        currency: "EUR"
+    }).format(value);
+}
+
+
+function parseEuro(value) {
+    if (!value) return 0;
+    return parseFloat(
+        value
+            .replace(/\./g, "")
+            .replace(",", ".")
+            .replace("€", "")
+            .trim()
+    ) || 0;
+}
+
+// --- FASE 1: Estado para detectar edición manual de precio de venta ---
+let precioVentaManual = false;
+
+function recalcMediaValoraciones() {
+    const fields = [
+        "val_idealista",
+        "val_fotocasa",
+        "val_registradores",
+        "val_casafari",
+        "val_tasacion"
+    ];
+
+    let total = 0;
+    let count = 0;
+
+    fields.forEach(name => {
+        const el = document.querySelector(`[name="${name}"]`);
+        if (el) {
+            const v = parseEuro(el.value);
+            if (v > 0) {
+                total += v;
+                count += 1;
+            }
+        }
+    });
+
+    const media = count > 0 ? total / count : 0;
+    const target = document.querySelector('[name="media_valoraciones"]');
+    if (target) {
+        target.value = formatEuro(media);
+
+        // Auto-suggest sale price from media (only if user hasn't edited it)
+        const precioVenta = document.querySelector('[name="precio_venta_estimado"]');
+        if (precioVenta && !precioVentaManual) {
+            precioVenta.value = formatEuro(media);
+        }
+    }
+}
+
+function recalcPrecioCompraInmueble() {
+    const escritura = parseEuro(document.querySelector('[name="precio_propiedad"]')?.value);
+
+    // === CÁLCULOS AUTOMÁTICOS BASADOS EN PRECIO DE ESCRITURA ===
+    const notariaCalc = Math.max(escritura * 0.002, 500);
+    const registroCalc = Math.max(escritura * 0.002, 500);
+    const itpCalc = escritura * 0.02;
+
+    const notariaInput = document.querySelector('[name="notaria"]');
+    const registroInput = document.querySelector('[name="registro"]');
+    const itpInput = document.querySelector('[name="itp"]');
+
+    if (notariaInput) notariaInput.value = formatEuro(notariaCalc);
+    if (registroInput) registroInput.value = formatEuro(registroCalc);
+    if (itpInput) itpInput.value = formatEuro(itpCalc);
+
+    const gastos = [
+        // Gastos de adquisición
+        "notaria",
+        "registro",
+        "itp",
+        "otros_gastos_compra",
+
+        // Inversión inicial
+        "reforma",
+        "limpieza_inicial",
+        "mobiliario",
+        "otros_puesta_marcha",
+
+        // Gastos recurrentes
+        "comunidad",
+        "ibi",
+        "seguros",
+        "suministros",
+        "limpieza_periodica",
+        "ocupas",
+
+        // Gastos de venta (INCLUIDOS)
+        "plusvalia",
+        "inmobiliaria",
+        "gestion_comercial",
+        "gestion_administracion"
+    ];
+
+    let totalGastos = 0;
+    gastos.forEach(name => {
+        const el = document.querySelector(`[name="${name}"]`);
+        if (el) totalGastos += parseEuro(el.value);
+    });
+
+    const total = escritura + totalGastos;
+    const target = document.querySelector('[name="precio_compra_inmueble"]');
+    if (target) {
+        target.value = formatEuro(total);
+        // target.dispatchEvent(new Event("blur")); // Removed forced blur (fix)
+    }
+}
+
+document.querySelectorAll('input[data-euro="true"]').forEach(input => {
+    input.addEventListener("blur", () => {
+
+        // Skip formatting for valuation inputs to avoid clearing while typing
+        if (input.hasAttribute("data-valuation")) {
+            recalcPrecioCompraInmueble();
+            recalcMediaValoraciones();
+            return;
+        }
+
+        const raw = input.value;
+        const val = parseEuro(raw);
+
+        if (raw.trim() !== "" && val > 0) {
+            input.value = formatEuro(val);
+        } else {
+            input.value = raw;
+        }
+
+        recalcPrecioCompraInmueble();
+        recalcMediaValoraciones();
+    });
+});
+// Recalculate totals when editing “Precio de escritura”
+const precioEscrituraInput = document.querySelector('[name="precio_propiedad"]');
+if (precioEscrituraInput) {
+    precioEscrituraInput.addEventListener("input", () => {
+        recalcPrecioCompraInmueble();
+    });
+}
+
+// --- FASE 1: Detectar edición manual del precio de venta estimado ---
+const precioVentaInput = document.querySelector('[name="precio_venta_estimado"]');
+if (precioVentaInput) {
+    precioVentaInput.addEventListener("input", () => {
+        precioVentaManual = true;
+    });
+}
+function verCatastro() {
+    const ref = document.querySelector('[name="ref_catastral"]')?.value?.trim();
+
+    // Catastro siempre abre
+    let url = "https://www.sedecatastro.gob.es/";
+
+    // Si hay referencia, llevamos al buscador
+    if (ref) {
+        url = "https://www.sedecatastro.gob.es/Accesos/SECAccesos.aspx";
+    }
+
+    window.open(url, "_blank", "noopener");
+}
+
+const refInput = document.querySelector('[name="ref_catastral"]');
+const btnCatastro = document.getElementById("btnCatastro");
+
+if (refInput && btnCatastro) {
+    const toggleCatastroButton = () => {
+        if (refInput.value.trim() !== "") {
+            btnCatastro.style.opacity = "1";
+            btnCatastro.style.filter = "none";
+        } else {
+            btnCatastro.style.opacity = "1";
+            btnCatastro.style.filter = "grayscale(40%)";
+        }
+    };
+
+    refInput.addEventListener("input", toggleCatastroButton);
+    toggleCatastroButton();
+}
+</script>
+
+<script>
+document.querySelector("form").addEventListener("submit", () => {
+    document.querySelectorAll('input[data-valuation="true"]').forEach(input => {
+        const val = parseEuro(input.value);
+        if (val > 0) input.value = formatEuro(val);
+    });
+});
+</script>
+
 {% endblock %}
+
+    <!-- ===============================
+         PROYECTOS GUARDADOS
+    ================================ -->
+    <div class="card mb-4 shadow-sm border-0">
+        <div class="card-body">
+            <label class="form-label fw-semibold">Proyecto guardado</label>
+            <select class="form-select form-select-lg"
+                    onchange="
+                        if (this.value !== '') {
+                            window.location.href = '/?proyecto=' + encodeURIComponent(this.value);
+                        } else {
+                            document.querySelector('form').reset();
+                            window.location.replace('/');
+                        }
+                    ">
+                <option value="">— Nuevo proyecto —</option>
+                {% for p in proyectos %}
+                    <option value="{{ p.nombre }}"
+                        {% if proyecto and proyecto.nombre == p.nombre %}selected{% endif %}>
+                        {{ p.nombre }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>

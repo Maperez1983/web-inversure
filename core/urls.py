@@ -1,6 +1,7 @@
 from django.urls import path
-from .views import simulador
+from . import views
 
 urlpatterns = [
-    path("", simulador, name="home"),
+    path("", views.simulador, name="simulador"),
+    path("proyectos/", views.lista_proyectos, name="lista_proyectos"),
 ]

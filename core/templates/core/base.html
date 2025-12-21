@@ -27,12 +27,6 @@
             background: #ffffff;
             border-bottom: 1px solid #e5e7eb;
             padding: 20px 40px;
-            display: flex;
-            align-items: center;
-        }
-
-        header img {
-            height: 45px;
         }
 
         main {
@@ -45,69 +39,46 @@
 
 <body>
 
-<header>
-    <img src="{% static 'core/logo.png' %}" alt="Inversure">
+<header class="topbar">
+    <div class="topbar-inner">
+
+        <!-- Izquierda (vacío) -->
+        <div></div>
+
+        <!-- Centro: LOGO -->
+        <div class="brand">
+            <img src="{% static 'core/logo.png' %}" alt="Inversure">
+        </div>
+
+        <!-- Derecha: selector proyectos -->
+        {% if proyectos %}
+        <div class="topbar-right">
+            <select class="form-select"
+                    style="max-width:260px;"
+                    onchange="
+                        if (this.value !== '') {
+                            window.location.href = '/?proyecto=' + encodeURIComponent(this.value);
+                        } else {
+                            window.location.href = '/';
+                        }
+                    ">
+                <option value="">— Nuevo proyecto —</option>
+                {% for p in proyectos %}
+                    <option value="{{ p.nombre }}"
+                        {% if proyecto and proyecto.nombre == p.nombre %}selected{% endif %}>
+                        {{ p.nombre }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        {% endif %}
+
+    </div>
 </header>
 
 <main>
     {% block content %}{% endblock %}
 </main>
-
-<!-- FORMATO CONTABLE EUROPEO -->
-<script>
-document.addEventListener("DOMContentLoaded", function () {
-
-    function formatEuro(value) {
-        if (value === "" || isNaN(value)) return "";
-        return Number(value).toLocaleString("es-ES", {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2
-        });
-    }
-
-    function parseEuro(value) {
-        return value.replace(/\./g, "").replace(",", ".");
-    }
-
-    /* ================================
-       FORMATO CONTABLE INPUTS
-       ================================ */
-    document.querySelectorAll("input[data-euro]").forEach(input => {
-
-        input.addEventListener("blur", () => {
-            if (input.value !== "") {
-                input.value = formatEuro(parseEuro(input.value));
-            }
-        });
-
-        input.addEventListener("focus", () => {
-            input.value = parseEuro(input.value);
-        });
-    });
-
-    /* ================================
-       CÁLCULO AUTOMÁTICO NOTARÍA / REGISTRO
-       ================================ */
-    const precioCompraInput = document.querySelector('input[name="precio_compra"]');
-    const notariaInput = document.getElementById("notaria");
-    const registroInput = document.getElementById("registro");
-
-    if (precioCompraInput && notariaInput && registroInput) {
-
-        precioCompraInput.addEventListener("input", function () {
-
-            const precioCompra = parseFloat(parseEuro(precioCompraInput.value)) || 0;
-
-            const notaria = precioCompra * 0.002;
-            const registro = precioCompra * 0.002;
-
-            notariaInput.value = formatEuro(notaria);
-            registroInput.value = formatEuro(registro);
-        });
-    }
-
-});
-</script>
 
  </body>
 </html>
