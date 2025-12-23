@@ -1,0 +1,51 @@
+{% for proyecto in proyectos %}
+  {% if proyecto.estado == estado %}
+    <div class="card mb-2 shadow-sm">
+      <div class="card-body d-flex justify-content-between align-items-center flex-wrap gap-2">
+
+        <div>
+          <strong>{{ proyecto.nombre }}</strong><br>
+          <small class="text-muted">
+            Estado: {{ proyecto.get_estado_display|default:proyecto.estado }}
+          </small>
+        </div>
+
+        <div class="d-flex gap-1">
+          <!-- Abrir simulador (sin argumentos en la URL) -->
+          <a href="{% url 'simulador' %}?proyecto={{ proyecto.nombre|urlencode }}"
+             class="btn btn-sm btn-outline-dark">
+            Abrir
+          </a>
+
+          <!-- Cambio de estado -->
+          <form method="post" action="{% url 'cambiar_estado_proyecto' proyecto.id %}">
+            {% csrf_token %}
+            <input type="hidden" name="estado" value="estudio">
+            <button class="btn btn-sm btn-outline-secondary">Estudio</button>
+          </form>
+
+          <form method="post" action="{% url 'cambiar_estado_proyecto' proyecto.id %}">
+            {% csrf_token %}
+            <input type="hidden" name="estado" value="operacion">
+            <button class="btn btn-sm btn-outline-primary">Operación</button>
+          </form>
+
+          <form method="post" action="{% url 'cambiar_estado_proyecto' proyecto.id %}">
+            {% csrf_token %}
+            <input type="hidden" name="estado" value="cerrado">
+            <button class="btn btn-sm btn-outline-success">Cerrado</button>
+          </form>
+
+          <form method="post" action="{% url 'cambiar_estado_proyecto' proyecto.id %}">
+            {% csrf_token %}
+            <input type="hidden" name="estado" value="descartado">
+            <button class="btn btn-sm btn-outline-danger">Descartar</button>
+          </form>
+        </div>
+
+      </div>
+    </div>
+  {% endif %}
+{% empty %}
+  <p class="text-muted small">No hay proyectos en este estado.</p>
+{% endfor %}

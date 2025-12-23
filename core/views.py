@@ -39,6 +39,12 @@ def simulador(request):
     if nombre_get:
         proyecto = Proyecto.objects.filter(nombre=nombre_get).first()
 
+    # === REGLAS POR ESTADO (FASE A) ===
+    editable = True
+    if proyecto:
+        if proyecto.estado in ["cerrado", "cerrado_positivo"]:
+            editable = False
+
     if request.method == "POST":
         data = request.POST
 
@@ -68,6 +74,7 @@ def simulador(request):
                         "proyectos": proyectos,
                         "resultado": resultado,
                         "proyecto": proyecto,
+                        "editable": editable,
                     },
                 )
 
@@ -156,10 +163,22 @@ def simulador(request):
         ]
         media_valoraciones = sum(valores) / len(valores) if valores else 0
 
+        # OPCIÓN 1: Precio de venta por defecto = media de valoraciones si no se introduce manualmente
+        if precio_venta == 0 and media_valoraciones > 0:
+            precio_venta = media_valoraciones
+
         # === GASTOS AUTOMÁTICOS DE ADQUISICIÓN (solo sobre precio_escritura) ===
-        notaria = max(float(precio_escritura) * 0.002, 500)
-        registro = max(float(precio_escritura) * 0.002, 500)
-        itp = float(precio_escritura) * 0.02
+        notaria = parse_euro(data.get("notaria"))
+        if notaria == 0:
+            notaria = max(float(precio_escritura) * 0.002, 500)
+
+        registro = parse_euro(data.get("registro"))
+        if registro == 0:
+            registro = max(float(precio_escritura) * 0.002, 500)
+
+        itp = parse_euro(data.get("itp"))
+        if itp == 0:
+            itp = float(precio_escritura) * 0.02
 
         # === GASTOS MANUALES ===
         otros_gastos_compra = parse_euro(data.get("otros_gastos_compra"))
@@ -205,8 +224,13 @@ def simulador(request):
         beneficio_base = (precio_venta - gastos_venta) - valor_adquisicion
 
         # === GESTIÓN COMERCIAL Y ADMINISTRACIÓN ===
-        gestion_comercial = beneficio_base * 0.05 if beneficio_base > 0 else 0
-        gestion_administracion = beneficio_base * 0.05 if beneficio_base > 0 else 0
+        gestion_comercial = parse_euro(data.get("gestion_comercial"))
+        if gestion_comercial == 0 and beneficio_base > 0:
+            gestion_comercial = beneficio_base * 0.05
+
+        gestion_administracion = parse_euro(data.get("gestion_administracion"))
+        if gestion_administracion == 0 and beneficio_base > 0:
+            gestion_administracion = beneficio_base * 0.05
 
         # === BENEFICIO NETO ===
         beneficio_neto = beneficio_base - gestion_comercial - gestion_administracion
@@ -219,13 +243,12 @@ def simulador(request):
 
         # === MÉTRICAS PRO (ANÁLISIS INVERSOR) ===
 
-        # Margen neto sobre precio de venta
+        # Margen neto sobre precio de venta (%)
         margen_neto = (beneficio_neto / precio_venta) * 100 if precio_venta > 0 else 0
 
-        # === MÉTRICAS INVERSOR AVANZADAS ===
         # Colchón de seguridad (%)
-        # ¿Cuánto puede bajar el precio de venta antes de perder dinero?
-        colchon_seguridad = (beneficio_neto / precio_venta) * 100 if precio_venta > 0 else 0
+        # Cuánto puede bajar el precio de venta antes de perder beneficio
+        colchon_seguridad = margen_neto
 
         # Ratio € ganado por € invertido
         # Ej: 0,15 € por cada € invertido
@@ -250,6 +273,13 @@ def simulador(request):
             "colchon_seguridad": round(colchon_seguridad, 2),
             "ratio_euro": round(ratio_euro, 3),
             "precio_minimo_venta": round(precio_minimo_venta, 2),
+        }
+
+        # === CONSOLIDACIÓN MÉTRICAS INVERSOR (OPCIÓN 3) ===
+        resultado["metricas_inversor"] = {
+            "ratio_euro": round(ratio_euro, 3),
+            "precio_minimo_venta": round(precio_minimo_venta, 2),
+            "decision": "VIABLE" if viable else "NO VIABLE",
         }
 
         # === GUARDAR / ACTUALIZAR PROYECTO (CLAVE = NOMBRE) ===
@@ -340,9 +370,35 @@ def simulador(request):
             "proyectos": proyectos,
             "resultado": resultado,
             "proyecto": proyecto,
+            "editable": editable,
         }
     )
 
+
+from django.views.decorators.http import require_POST
+
+@require_POST
+def cambiar_estado_proyecto(request, proyecto_id):
+    estado_nuevo = request.POST.get("estado")
+
+    ESTADOS_VALIDOS = [
+        "estudio",
+        "operacion",
+        "cerrado",
+        "descartado",
+    ]
+
+    proyecto = Proyecto.objects.filter(id=proyecto_id).first()
+    if not proyecto:
+        return redirect("lista_proyectos")
+
+    if estado_nuevo not in ESTADOS_VALIDOS:
+        return redirect("lista_proyectos")
+
+    proyecto.estado = estado_nuevo
+    proyecto.save(update_fields=["estado"])
+
+    return redirect("lista_proyectos")
 
 # === BORRAR PROYECTO DEFINITIVAMENTE ===
 def borrar_proyecto(request, nombre):

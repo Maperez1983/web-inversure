@@ -9,4 +9,9 @@ urlpatterns = [
     path("clientes/", views.clientes, name="clientes"),
     path("clientes/nuevo/", views.cliente_create, name="cliente_create"),
     path("clientes/importar/", views.clientes_import, name="clientes_import"),
+    path(
+        "proyectos/cambiar-estado/<int:proyecto_id>/",
+        views.cambiar_estado_proyecto,
+        name="cambiar_estado_proyecto",
+    ),
 ]
