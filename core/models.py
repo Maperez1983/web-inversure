@@ -1,4 +1,5 @@
 from django.db import models
+from django.utils.timezone import now
 
 
 class Proyecto(models.Model):
@@ -11,118 +12,172 @@ class Proyecto(models.Model):
     # =========================
     # DATOS DEL INMUEBLE
     # =========================
+    direccion = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        help_text="Dirección del inmueble del proyecto"
+    )
+    lat = models.FloatField(
+        null=True,
+        blank=True,
+        help_text="Latitud del inmueble (geolocalización)"
+    )
+    lon = models.FloatField(
+        null=True,
+        blank=True,
+        help_text="Longitud del inmueble (geolocalización)"
+    )
     precio_propiedad = models.DecimalField(
-        max_digits=12, decimal_places=2, default=0
+        max_digits=12, decimal_places=2, null=True, blank=True, default=None
     )
     precio_compra_inmueble = models.DecimalField(
-        max_digits=12, decimal_places=2, default=0
+        max_digits=12, decimal_places=2, null=True, blank=True, default=None
     )
     precio_venta_estimado = models.DecimalField(
-        max_digits=12, decimal_places=2, default=0
+        max_digits=12, decimal_places=2, null=True, blank=True, default=None
     )
     ref_catastral = models.CharField(
         max_length=50, blank=True, null=True
     )
     valor_referencia = models.DecimalField(
-        max_digits=12, decimal_places=2, default=0
+        max_digits=12, decimal_places=2, null=True, blank=True, default=None
     )
 
     # =========================
     # GASTOS DE ADQUISICIÓN
     # =========================
     itp = models.DecimalField(
-        max_digits=12, decimal_places=2, default=0
+        max_digits=12, decimal_places=2, null=True, blank=True, default=None
     )
     notaria = models.DecimalField(
-        max_digits=12, decimal_places=2, default=0
+        max_digits=12, decimal_places=2, null=True, blank=True, default=None
     )
     registro = models.DecimalField(
-        max_digits=12, decimal_places=2, default=0
+        max_digits=12, decimal_places=2, null=True, blank=True, default=None
     )
     otros_gastos_compra = models.DecimalField(
-        max_digits=12, decimal_places=2, default=0
+        max_digits=12, decimal_places=2, null=True, blank=True, default=None
     )
 
     # =========================
     # INVERSIÓN INICIAL
     # =========================
     reforma = models.DecimalField(
-        max_digits=12, decimal_places=2, default=0
+        max_digits=12, decimal_places=2, null=True, blank=True, default=None
     )
     limpieza_inicial = models.DecimalField(
-        max_digits=12, decimal_places=2, default=0
+        max_digits=12, decimal_places=2, null=True, blank=True, default=None
     )
     mobiliario = models.DecimalField(
-        max_digits=12, decimal_places=2, default=0
+        max_digits=12, decimal_places=2, null=True, blank=True, default=None
     )
     otros_puesta_marcha = models.DecimalField(
-        max_digits=12, decimal_places=2, default=0
+        max_digits=12, decimal_places=2, null=True, blank=True, default=None
+    )
+
+    # =========================
+    # OBRA (DETALLE POR PARTIDAS)
+    # =========================
+    obra_demoliciones = models.DecimalField(
+        max_digits=12, decimal_places=2, default=0, null=True, blank=True
+    )
+    obra_albanileria = models.DecimalField(
+        max_digits=12, decimal_places=2, default=0, null=True, blank=True
+    )
+    obra_fontaneria = models.DecimalField(
+        max_digits=12, decimal_places=2, default=0, null=True, blank=True
+    )
+    obra_electricidad = models.DecimalField(
+        max_digits=12, decimal_places=2, default=0, null=True, blank=True
+    )
+    obra_carpinteria_interior = models.DecimalField(
+        max_digits=12, decimal_places=2, default=0, null=True, blank=True
+    )
+    obra_carpinteria_exterior = models.DecimalField(
+        max_digits=12, decimal_places=2, default=0, null=True, blank=True
+    )
+    obra_cocina = models.DecimalField(
+        max_digits=12, decimal_places=2, default=0, null=True, blank=True
+    )
+    obra_banos = models.DecimalField(
+        max_digits=12, decimal_places=2, default=0, null=True, blank=True
+    )
+    obra_pintura = models.DecimalField(
+        max_digits=12, decimal_places=2, default=0, null=True, blank=True
+    )
+    obra_otros = models.DecimalField(
+        max_digits=12, decimal_places=2, default=0, null=True, blank=True
+    )
+
+    # =========================
+    # SEGURIDAD
+    # =========================
+    cerrajero = models.DecimalField(
+        max_digits=12, decimal_places=2, default=0, null=True, blank=True
+    )
+    alarma = models.DecimalField(
+        max_digits=12, decimal_places=2, default=0, null=True, blank=True
     )
 
     # =========================
     # GASTOS RECURRENTES
     # =========================
     comunidad = models.DecimalField(
-        max_digits=12, decimal_places=2, default=0
+        max_digits=12, decimal_places=2, null=True, blank=True, default=None
     )
     ibi = models.DecimalField(
-        max_digits=12, decimal_places=2, default=0
+        max_digits=12, decimal_places=2, null=True, blank=True, default=None
     )
     seguros = models.DecimalField(
-        max_digits=12, decimal_places=2, default=0
+        max_digits=12, decimal_places=2, null=True, blank=True, default=None
     )
     suministros = models.DecimalField(
-        max_digits=12, decimal_places=2, default=0
+        max_digits=12, decimal_places=2, null=True, blank=True, default=None
     )
     limpieza_periodica = models.DecimalField(
-        max_digits=12, decimal_places=2, default=0
+        max_digits=12, decimal_places=2, null=True, blank=True, default=None
     )
     ocupas = models.DecimalField(
-        max_digits=12, decimal_places=2, default=0
+        max_digits=12, decimal_places=2, null=True, blank=True, default=None
     )
 
     # =========================
     # GASTOS DE VENTA
     # =========================
-    gastos_comercializacion = models.DecimalField(
-        max_digits=12, decimal_places=2, default=0
-    )
-    gastos_administracion = models.DecimalField(
-        max_digits=12, decimal_places=2, default=0
-    )
     gestion_comercial = models.DecimalField(
-        max_digits=12, decimal_places=2, default=0
+        max_digits=12, decimal_places=2, null=True, blank=True, default=None
     )
     gestion_administracion = models.DecimalField(
-        max_digits=12, decimal_places=2, default=0
+        max_digits=12, decimal_places=2, null=True, blank=True, default=None
     )
     plusvalia = models.DecimalField(
-        max_digits=12, decimal_places=2, default=0
+        max_digits=12, decimal_places=2, null=True, blank=True, default=None
     )
     inmobiliaria = models.DecimalField(
-        max_digits=12, decimal_places=2, default=0
+        max_digits=12, decimal_places=2, null=True, blank=True, default=None
     )
 
     # =========================
     # VALORACIONES
     # =========================
     val_idealista = models.DecimalField(
-        max_digits=12, decimal_places=2, default=0
+        max_digits=12, decimal_places=2, null=True, blank=True, default=None
     )
     val_fotocasa = models.DecimalField(
-        max_digits=12, decimal_places=2, default=0
+        max_digits=12, decimal_places=2, null=True, blank=True, default=None
     )
     val_registradores = models.DecimalField(
-        max_digits=12, decimal_places=2, default=0
+        max_digits=12, decimal_places=2, null=True, blank=True, default=None
     )
     val_casafari = models.DecimalField(
-        max_digits=12, decimal_places=2, default=0
+        max_digits=12, decimal_places=2, null=True, blank=True, default=None
     )
     val_tasacion = models.DecimalField(
-        max_digits=12, decimal_places=2, default=0
+        max_digits=12, decimal_places=2, null=True, blank=True, default=None
     )
     media_valoraciones = models.DecimalField(
-        max_digits=12, decimal_places=2, default=0
+        max_digits=12, decimal_places=2, null=True, blank=True, default=None
     )
     # =========================
     # DURACIÓN DE LA OPERACIÓN
@@ -136,13 +191,13 @@ class Proyecto(models.Model):
     # RESULTADOS / MÉTRICAS
     # =========================
     beneficio_bruto = models.DecimalField(
-        max_digits=12, decimal_places=2, default=0
+        max_digits=12, decimal_places=2, null=True, blank=True, default=None
     )
     beneficio_neto = models.DecimalField(
-        max_digits=12, decimal_places=2, default=0
+        max_digits=12, decimal_places=2, null=True, blank=True, default=None
     )
     roi = models.DecimalField(
-        max_digits=6, decimal_places=2, default=0
+        max_digits=6, decimal_places=2, null=True, blank=True, default=None
     )
 
     # =========================
@@ -161,10 +216,40 @@ class Proyecto(models.Model):
         default="estudio"
     )
     # =========================
+    # ORIGEN DE LA SIMULACIÓN
+    # =========================
+    simulacion_origen = models.ForeignKey(
+        "Simulacion",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="proyectos_generados",
+        help_text="Simulación de la que procede este proyecto (si aplica)"
+    )
+    # =========================
     # CONTROL
     # =========================
     creado = models.DateTimeField(auto_now_add=True)
     actualizado = models.DateTimeField(auto_now=True)
+
+    # =========================
+    # NOTA FUNCIONAL
+    # =========================
+    # El modelo Proyecto actúa únicamente como
+    # contenedor de datos persistentes.
+    #
+    # NO se aplica ninguna lógica de cálculo,
+    # estimación ni formateo en el modelo.
+    #
+    # Toda la lógica económica y de rentabilidad
+    # se resuelve exclusivamente en views.py
+    # y/o en el frontend (simulador).
+
+    def es_estudio(self):
+        return self.estado == "estudio"
+
+    def es_operacion(self):
+        return self.estado == "operacion"
 
     def __str__(self):
         return f"{self.nombre} ({self.fecha})"
@@ -230,8 +315,203 @@ class Cliente(models.Model):
         null=True
     )
 
+    # =========================
+    # DATOS ADMINISTRATIVOS
+    # =========================
+    fecha_introduccion = models.DateField(
+        default=now,
+        help_text="Fecha de alta del cliente en el sistema"
+    )
+
+    direccion_postal = models.TextField(
+        blank=True,
+        null=True,
+        help_text="Dirección postal completa del cliente"
+    )
+
+    cuota_abonada = models.BooleanField(
+        default=False,
+        help_text="Indica si el cliente ha abonado la cuota"
+    )
+
+    presente_en_comunidad = models.BooleanField(
+        default=False,
+        help_text="Indica si el cliente está presente en la comunidad"
+    )
+
     creado = models.DateTimeField(auto_now_add=True)
     actualizado = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return f"{self.nombre} ({self.dni_cif})"
+
+# =========================
+# MODELO PARTICIPACIÓN (INVERSORES EN PROYECTOS)
+# =========================
+class Participacion(models.Model):
+    # =========================
+    # RELACIONES
+    # =========================
+    proyecto = models.ForeignKey(
+        Proyecto,
+        on_delete=models.CASCADE,
+        related_name="participaciones"
+    )
+
+    cliente = models.ForeignKey(
+        Cliente,
+        on_delete=models.CASCADE,
+        related_name="participaciones"
+    )
+
+    # =========================
+    # DATOS DE INVERSIÓN
+    # =========================
+    importe_invertido = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        help_text="Cantidad aportada por el cliente al proyecto"
+    )
+
+    porcentaje_participacion = models.DecimalField(
+        max_digits=6,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Porcentaje de participación sobre el total invertido"
+    )
+
+    # =========================
+    # CONTROL
+    # =========================
+    creado = models.DateTimeField(auto_now_add=True)
+    actualizado = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.cliente} → {self.proyecto} ({self.importe_invertido} €)"
+
+
+# =========================
+# MODELO SIMULACIÓN
+# =========================
+class Simulacion(models.Model):
+    # =========================
+    # IDENTIFICACIÓN
+    # =========================
+    nombre = models.CharField(
+        max_length=255,
+        help_text="Nombre identificativo de la simulación"
+    )
+
+    fecha = models.DateField(
+        default=now,
+        help_text="Fecha de creación de la simulación"
+    )
+
+    # =========================
+    # DATOS DEL INMUEBLE (BÁSICOS)
+    # =========================
+    direccion = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True
+    )
+    lat = models.FloatField(
+        null=True,
+        blank=True,
+        help_text="Latitud del inmueble (geolocalización)"
+    )
+    lon = models.FloatField(
+        null=True,
+        blank=True,
+        help_text="Longitud del inmueble (geolocalización)"
+    )
+
+    ref_catastral = models.CharField(
+        max_length=50,
+        blank=True,
+        null=True
+    )
+
+    # =========================
+    # VALORES BÁSICOS
+    # =========================
+    precio_compra = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        help_text="Precio estimado de compra del inmueble"
+    )
+
+    precio_venta_estimado = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        help_text="Precio estimado de venta del inmueble"
+    )
+
+    gastos_estimados = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=0,
+        help_text="Gastos estimados globales (simplificados)"
+    )
+
+    # =========================
+    # RESULTADOS
+    # =========================
+    beneficio_estimado = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Beneficio estimado de la simulación"
+    )
+
+    roi_estimado = models.DecimalField(
+        max_digits=6,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="ROI estimado (%)"
+    )
+
+    # =========================
+    # RESULTADOS CALCULADOS (DETALLE)
+    # =========================
+    inversion_total = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True
+    )
+
+    beneficio = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True
+    )
+
+    roi = models.DecimalField(
+        max_digits=6,
+        decimal_places=2,
+        null=True,
+        blank=True
+    )
+
+    viable = models.BooleanField(
+        default=False,
+        help_text="Indica si la simulación supera los criterios de viabilidad"
+    )
+
+    convertida = models.BooleanField(
+        default=False,
+        help_text="Indica si la simulación ya ha sido convertida en proyecto"
+    )
+    # =========================
+    # CONTROL
+    # =========================
+    creado = models.DateTimeField(auto_now_add=True)
+    actualizado = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Simulación: {self.nombre}"

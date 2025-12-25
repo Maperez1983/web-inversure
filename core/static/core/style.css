@@ -19,10 +19,11 @@
 
 /* Tamaño logo Inversure */
 .brand img{
-  height: 90px;
+  height: 40px;
   width: auto;
   display: block;
 }
+
 
 /* ===== HEADER LAYOUT ===== */
 .topbar-inner{
@@ -118,6 +119,12 @@
   box-shadow: 0 0 0 1px rgba(25,135,84,0.15);
 }
 
+/* Operación ajustada */
+.resultado-ajustada{
+  border-left: 6px solid #ffc107; /* ámbar Bootstrap */
+  box-shadow: 0 0 0 1px rgba(255,193,7,0.18);
+}
+
 /* Operación no viable */
 .resultado-no-viable{
   border-left: 6px solid #dc3545; /* rojo Bootstrap */
@@ -134,4 +141,25 @@
 .hover-card:hover{
   transform: translateY(-6px);
   box-shadow: 0 12px 30px rgba(0,0,0,0.12);
+}
+
+/* ===============================
+   BOTÓN CORPORATIVO · INVERSURE
+   (override Bootstrap 5 real)
+   =============================== */
+
+.btn.btn-inversure{
+  --bs-btn-color: #d7b04c;
+  --bs-btn-bg: #122135;
+  --bs-btn-border-color: #d7b04c;
+
+  --bs-btn-hover-color: #d7b04c;
+  --bs-btn-hover-bg: #0e1a2a;
+  --bs-btn-hover-border-color: #d7b04c;
+
+  --bs-btn-active-color: #d7b04c;
+  --bs-btn-active-bg: #0b1422;
+  --bs-btn-active-border-color: #d7b04c;
+
+  font-weight: 500;
 }

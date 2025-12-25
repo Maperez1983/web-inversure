@@ -1,0 +1,24 @@
+{% if proyectos %}
+    <ul class="list-group list-group-flush">
+        {% for proyecto in proyectos %}
+            {% if proyecto.estado == estado %}
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <div>
+                        <strong>{{ proyecto.nombre }}</strong><br>
+                        <small class="text-muted">
+                            {{ proyecto.fecha|date:"d/m/Y" }}
+                        </small>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <a href="{% url 'simulador' %}?proyecto={{ proyecto.nombre }}"
+                           class="btn btn-sm btn-outline-dark">
+                            Abrir
+                        </a>
+                    </div>
+                </li>
+            {% endif %}
+        {% endfor %}
+    </ul>
+{% else %}
+    <p class="text-muted">No hay proyectos en este estado.</p>
+{% endif %}

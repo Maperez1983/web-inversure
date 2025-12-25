@@ -1,60 +1,77 @@
+import pandas as pd
+from django.contrib import messages
+from django.shortcuts import render, redirect
+from .models import Cliente
 
+def clientes_import(request):
+    if request.method == "POST" and request.FILES.get("archivo"):
+        archivo = request.FILES["archivo"]
 
-{% extends "core/base.html" %}
-{% block content %}
+        try:
+            df = pd.read_excel(archivo)
 
-<div class="container mt-5">
+            # Normalizar columnas
+            df.columns = (
+                df.columns
+                .astype(str)
+                .str.strip()
+                .str.lower()
+            )
 
-    <div class="text-center mb-5">
-        <h1 class="mb-1">Importar clientes</h1>
-        <p class="text-muted">
-            Importación masiva de clientes desde archivo Excel
-        </p>
-    </div>
+            # Mapeo flexible de columnas (Excel real → modelo)
+            COLUMN_MAP = {
+                "nombre": ["nombre", "nombre completo", "cliente"],
+                "dni_cif": ["dni", "dni/cif", "nif", "cif"],
+                "email": ["email", "correo", "correo electrónico"],
+                "telefono": ["telefono", "teléfono", "móvil", "movil"],
+                "iban": ["iban", "cuenta", "cuenta bancaria"],
+                "tipo_persona": ["tipo_persona", "tipo persona"],
+                "observaciones": ["observaciones", "notas"]
+            }
 
-    <form method="post" enctype="multipart/form-data"
-          class="card shadow-sm border-0 p-4">
+            def get_value(row, keys):
+                for k in keys:
+                    if k in row and pd.notna(row[k]):
+                        return str(row[k]).strip()
+                return ""
 
-        {% csrf_token %}
+            creados = 0
+            omitidos = 0
 
-        <!-- INFO -->
-        <div class="alert alert-info">
-            <strong>Formato requerido del Excel:</strong>
-            <ul class="mb-0">
-                <li><code>nombre</code> (obligatorio)</li>
-                <li><code>dni_cif</code> (obligatorio)</li>
-                <li><code>tipo_persona</code> (F / J, opcional)</li>
-                <li><code>email</code> (opcional)</li>
-                <li><code>telefono</code> (opcional)</li>
-                <li><code>iban</code> (opcional)</li>
-                <li><code>observaciones</code> (opcional)</li>
-            </ul>
-        </div>
+            for idx, row in df.iterrows():
+                nombre = get_value(row, COLUMN_MAP["nombre"])
+                dni_cif = get_value(row, COLUMN_MAP["dni_cif"])
 
-        <!-- ARCHIVO -->
-        <div class="mb-4">
-            <label class="form-label fw-semibold">
-                Archivo Excel
-            </label>
-            <input type="file"
-                   name="archivo"
-                   class="form-control form-control-lg"
-                   accept=".xlsx,.xls"
-                   required>
-        </div>
+                if not nombre or not dni_cif:
+                    omitidos += 1
+                    continue
 
-        <!-- ACCIONES -->
-        <div class="d-flex justify-content-between">
-            <a href="{% url 'clientes' %}" class="btn btn-outline-secondary">
-                Volver
-            </a>
-            <button type="submit" class="btn btn-dark">
-                Importar clientes
-            </button>
-        </div>
+                if Cliente.objects.filter(dni_cif=dni_cif).exists():
+                    omitidos += 1
+                    continue
 
-    </form>
+                Cliente.objects.create(
+                    nombre=nombre,
+                    dni_cif=dni_cif,
+                    tipo_persona=get_value(row, COLUMN_MAP["tipo_persona"]) or "F",
+                    email=get_value(row, COLUMN_MAP["email"]),
+                    telefono=get_value(row, COLUMN_MAP["telefono"]),
+                    iban=get_value(row, COLUMN_MAP["iban"]),
+                    observaciones=get_value(row, COLUMN_MAP["observaciones"]),
+                )
+                creados += 1
 
-</div>
+            messages.success(
+                request,
+                f"Importación finalizada: {creados} clientes creados, {omitidos} filas omitidas."
+            )
 
-{% endblock %}
+        except Exception as e:
+            messages.error(
+                request,
+                f"Error al importar el archivo: {e}"
+            )
+
+        return redirect("clientes")
+
+    return render(request, "core/clientes_import.html")

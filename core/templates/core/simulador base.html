@@ -1,3 +1,11 @@
+{#
+=================================================
+SIMULADOR BASE – PLANTILLA CONGELADA
+NO MODIFICAR
+Fecha: 2025-12-25
+Motivo: Backup estable antes de lógicas avanzadas
+=================================================
+#}
 {% extends "core/base.html" %}
 {% load static %}
 {% block content %}
@@ -73,27 +81,18 @@
                 <div class="col-md-6 mb-3 d-flex gap-2">
                     <div class="flex-grow-1">
                         <label class="form-label">Referencia catastral</label>
-                        <input type="text" id="ref_catastral" name="ref_catastral" class="form-control form-control-lg" {% if not editable %}disabled{% endif %}>
+                        <input type="text" name="ref_catastral" class="form-control form-control-lg" {% if not editable %}disabled{% endif %}>
                     </div>
-                    <div class="align-self-end d-flex gap-2">
+                    <div class="align-self-end">
                         <button type="button"
                                 id="btnCatastro"
                                 class="btn btn-sm px-2 d-flex align-items-center"
                                 style="background-color:#122135; color:white;"
-                                onclick="consultarCatastro()"
+                                onclick="verCatastro()"
                                 title="Abrir Catastro">
                             <img src="{% static 'core/catastro.png' %}"
                                  alt="Catastro"
                                  style="height:18px; width:auto; filter:brightness(0) invert(1);">
-                        </button>
-
-                        <button type="button"
-                                id="btnMapa"
-                                class="btn btn-sm px-2 d-flex align-items-center"
-                                style="background-color:#122135; color:white;"
-                                onclick="verMapa()"
-                                title="Ver en mapa">
-                            <span style="font-size:16px; line-height:1;">🗺️</span>
                         </button>
                     </div>
                 </div>
@@ -102,18 +101,6 @@
                     <label class="form-label">Valor de referencia catastral</label>
                     <input type="text" name="valor_referencia" class="form-control" data-euro="true"
                            value="{{ proyecto.valor_referencia|default:'' }}" {% if not editable %}disabled{% endif %}>
-                </div>
-            </div>
-            <div class="row">
-                <div class="col-md-12 mb-3">
-                    <label class="form-label">Dirección del inmueble</label>
-                    <input type="text"
-                           id="direccion"
-                           name="direccion"
-                           class="form-control form-control-lg"
-                           placeholder="Calle, número, municipio, provincia"
-                           value="{{ proyecto.direccion|default:'' }}"
-                           {% if not editable %}disabled{% endif %}>
                 </div>
             </div>
 
@@ -136,18 +123,6 @@
                            class="form-control form-control-lg"
                            data-euro="true"
                            value="{{ proyecto.precio_venta_estimado|default:'' }}" {% if not editable %}disabled{% endif %}>
-                </div>
-            </div>
-            <div class="row">
-                <div class="col-md-12">
-                    <div class="ratio ratio-16x9 border rounded overflow-hidden">
-                        <iframe id="mapIframe"
-                                src=""
-                                loading="lazy"
-                                referrerpolicy="no-referrer-when-downgrade"
-                                style="border:0;">
-                        </iframe>
-                    </div>
                 </div>
             </div>
         </div>
@@ -721,69 +696,6 @@
 
 <script>
 // ===== FORMATO MONETARIO ÚNICO =====
-
-/* ===============================
-   CATASTRO + MAPA (FUNCIONAL)
-=============================== */
-
-function consultarCatastro() {
-    const refInput = document.getElementById("ref_catastral");
-    if (!refInput || !refInput.value.trim()) {
-        alert("Introduce una referencia catastral válida");
-        return;
-    }
-
-    const ref = refInput.value.trim();
-
-    fetch(`/catastro/obtener/?ref=${encodeURIComponent(ref)}`)
-        .then(response => {
-            if (!response.ok) {
-                throw new Error("Error consultando Catastro");
-            }
-            return response.json();
-        })
-        .then(data => {
-            // Rellenar dirección si viene
-            if (data.direccion) {
-                const dirInput = document.getElementById("direccion");
-                if (dirInput) dirInput.value = data.direccion;
-            }
-
-            // Si hay coordenadas, actualizar mapa
-            if (data.lat && data.lon) {
-                actualizarMapa(data.lat, data.lon);
-            } else if (data.url) {
-                // fallback: abrir Catastro oficial
-                window.open(data.url, "_blank", "noopener");
-            }
-        })
-        .catch(err => {
-            console.error(err);
-            alert("No se pudo consultar el Catastro");
-        });
-}
-
-function verMapa() {
-    const iframe = document.getElementById("mapIframe");
-    const direccion = document.getElementById("direccion")?.value;
-
-    if (!iframe) return;
-
-    if (!direccion) {
-        alert("No hay dirección para mostrar en el mapa");
-        return;
-    }
-
-    const query = encodeURIComponent(direccion);
-    iframe.src = `https://www.google.com/maps?q=${query}&output=embed`;
-}
-
-function actualizarMapa(lat, lon) {
-    const iframe = document.getElementById("mapIframe");
-    if (!iframe) return;
-
-    iframe.src = `https://www.google.com/maps?q=${lat},${lon}&output=embed`;
-}
 function parseEuro(value) {
     if (!value) return 0;
     return Number(
@@ -807,6 +719,7 @@ function formatEuro(value) {
     }).format(value);
 }
 
+function activarFormatoMonetarioInputs() {
     document.querySelectorAll('input[data-euro="true"]').forEach(input => {
         input.addEventListener("focus", () => {
             const v = parseEuro(input.value);
@@ -818,7 +731,9 @@ function formatEuro(value) {
             input.value = formatEuro(v || 0);
         });
     });
+}
 
+// --- FASE 1: Estado para detectar edición manual de precio de venta ---
 
 let precioVentaManual = false;
 let notariaManual = false;
@@ -970,87 +885,177 @@ function recalcPrecioCompraInmueble() {
     });
     // Sumar también notaria, registro, itp calculados
     sumaGastosSinCom += notariaVal + registroVal + itpVal;
+    const beneficioBruto = precioVentaEstimado - (precioPropiedad + sumaGastosSinCom);
 
-    const beneficioBruto =
-        precioVentaEstimado - (precioPropiedad + sumaGastosSinCom);
-
+    // gestion_comercial = manual o beneficio_bruto * 0.05
     const gestionComercialInput = document.querySelector('[name="gestion_comercial"]');
+    let gestionComercialVal = gestionComercialInput ? parseEuro(gestionComercialInput.value) : 0;
+    if (!gestionComercialManual) gestionComercialVal = beneficioBruto * 0.05 > 0 ? beneficioBruto * 0.05 : 0;
+    // gestion_administracion = manual o beneficio_bruto * 0.05
     const gestionAdministracionInput = document.querySelector('[name="gestion_administracion"]');
+    let gestionAdministracionVal = gestionAdministracionInput ? parseEuro(gestionAdministracionInput.value) : 0;
+    if (!gestionAdministracionManual) gestionAdministracionVal = beneficioBruto * 0.05 > 0 ? beneficioBruto * 0.05 : 0;
 
-    let gestionComercialVal = gestionComercialManual
-        ? parseEuro(gestionComercialInput?.value)
-        : Math.max(beneficioBruto * 0.05, 0);
+    // Sumar todos los gastos
+    let totalGastos = 0;
+    // Sumar notaria, registro, itp calculados
+    totalGastos += notariaVal + registroVal + itpVal;
+    // Sumar el resto
+    gastos.forEach(name => {
+        // gestion_comercial y gestion_administracion: usar los valores calculados
+        if (name === "gestion_comercial") {
+            totalGastos += gestionComercialVal;
+        } else if (name === "gestion_administracion") {
+            totalGastos += gestionAdministracionVal;
+        } else {
+            const el = document.querySelector(`[name="${name}"]`);
+            if (el) totalGastos += parseEuro(el.value);
+        }
+    });
 
-    let gestionAdministracionVal = gestionAdministracionManual
-        ? parseEuro(gestionAdministracionInput?.value)
-        : Math.max(beneficioBruto * 0.05, 0);
-
-    if (gestionComercialInput && !gestionComercialManual) {
-        gestionComercialInput.value = formatEuro(gestionComercialVal);
-    }
-    if (gestionAdministracionInput && !gestionAdministracionManual) {
-        gestionAdministracionInput.value = formatEuro(gestionAdministracionVal);
-    }
-
-    let totalGastos = sumaGastosSinCom + gestionComercialVal + gestionAdministracionVal;
     const total = precioPropiedad + totalGastos;
-
     const target = document.querySelector('[name="precio_compra_inmueble"]');
     if (target) {
         target.value = formatEuro(total);
     }
-</script>
+}
 
-<script>
-function consultarCatastro() {
-    const ref = document.getElementById("ref_catastral")?.value?.trim();
-    const dirInput = document.getElementById("direccion");
 
-    if (!ref) {
-        alert("Introduce una referencia catastral");
-        return;
+
+// Recalculate totals when editing “Precio de escritura”
+const precioEscrituraInput = document.querySelector('[name="precio_propiedad"]');
+if (precioEscrituraInput) {
+    precioEscrituraInput.addEventListener("input", () => {
+        recalcPrecioCompraInmueble();
+    });
+}
+
+// --- FASE 1: Detectar edición manual del precio de venta estimado ---
+const precioVentaInput = document.querySelector('[name="precio_venta_estimado"]');
+if (precioVentaInput) {
+    precioVentaInput.addEventListener("input", () => {
+        precioVentaManual = true;
+    });
+}
+
+const notariaInputManual = document.querySelector('[name="notaria"]');
+if (notariaInputManual) {
+    notariaInputManual.addEventListener("input", () => {
+        notariaManual = true;
+    });
+}
+
+const registroInputManual = document.querySelector('[name="registro"]');
+if (registroInputManual) {
+    registroInputManual.addEventListener("input", () => {
+        registroManual = true;
+    });
+}
+
+const itpInputManual = document.querySelector('[name="itp"]');
+if (itpInputManual) {
+    itpInputManual.addEventListener("input", () => {
+        itpManual = true;
+    });
+}
+
+const gestionComercialInputManual = document.querySelector('[name="gestion_comercial"]');
+if (gestionComercialInputManual) {
+    gestionComercialInputManual.addEventListener("input", () => {
+        gestionComercialManual = true;
+    });
+}
+
+const gestionAdministracionInputManual = document.querySelector('[name="gestion_administracion"]');
+if (gestionAdministracionInputManual) {
+    gestionAdministracionInputManual.addEventListener("input", () => {
+        gestionAdministracionManual = true;
+    });
+}
+function verCatastro() {
+    const ref = document.querySelector('[name="ref_catastral"]')?.value?.trim();
+
+    // Catastro siempre abre
+    let url = "https://www.sedecatastro.gob.es/";
+
+    // Si hay referencia, llevamos al buscador
+    if (ref) {
+        url = "https://www.sedecatastro.gob.es/Accesos/SECAccesos.aspx";
     }
 
-    fetch(`/catastro/obtener/?ref=${encodeURIComponent(ref)}`)
-        .then(response => {
-            if (!response.ok) {
-                throw new Error("Error Catastro");
-            }
-            return response.json();
-        })
-        .then(data => {
-            if (data.error) {
-                alert(data.error);
-                return;
-            }
-
-            if (dirInput && data.direccion) {
-                dirInput.value = data.direccion;
-            }
-
-            if (data.lat && data.lon) {
-                const iframe = document.getElementById("mapIframe");
-                if (iframe) {
-                    iframe.src = `https://www.google.com/maps?q=${data.lat},${data.lon}&z=18&output=embed`;
-                }
-            }
-        })
-        .catch(() => {
-            alert("No se pudo consultar el Catastro");
-        });
+    window.open(url, "_blank", "noopener");
 }
 
-function cargarMapa() {
-    if (!window._lat || !window._lon) return;
+const refInput = document.querySelector('[name="ref_catastral"]');
+const btnCatastro = document.getElementById("btnCatastro");
 
-    const iframe = document.getElementById("mapIframe");
-    if (!iframe) return;
+if (refInput && btnCatastro) {
+    const toggleCatastroButton = () => {
+        if (refInput.value.trim() !== "") {
+            btnCatastro.style.opacity = "1";
+            btnCatastro.style.filter = "none";
+        } else {
+            btnCatastro.style.opacity = "1";
+            btnCatastro.style.filter = "grayscale(40%)";
+        }
+    };
 
-    iframe.src = `https://www.google.com/maps?q=${window._lat},${window._lon}&z=17&output=embed`;
+    refInput.addEventListener("input", toggleCatastroButton);
+    toggleCatastroButton();
 }
 
-function verMapa() {
-    cargarMapa();
+
+function initManualFlags() {
+    const map = [
+        { name: "notaria", set: () => notariaManual = true },
+        { name: "registro", set: () => registroManual = true },
+        { name: "itp", set: () => itpManual = true },
+        { name: "gestion_comercial", set: () => gestionComercialManual = true },
+        { name: "gestion_administracion", set: () => gestionAdministracionManual = true },
+        { name: "precio_venta_estimado", set: () => precioVentaManual = true }
+    ];
+
+    map.forEach(item => {
+        const el = document.querySelector(`[name="${item.name}"]`);
+        if (el && parseEuro(el.value) > 0) item.set();
+    });
 }
+
+function activarListeners() {
+    const escritura = document.querySelector('[name="precio_propiedad"]');
+    if (escritura) {
+        escritura.addEventListener("input", recalcPrecioCompraInmueble);
+    }
+
+    const manualInputs = [
+        { name: "notaria", flag: () => notariaManual = true },
+        { name: "registro", flag: () => registroManual = true },
+        { name: "itp", flag: () => itpManual = true },
+        { name: "gestion_comercial", flag: () => gestionComercialManual = true },
+        { name: "gestion_administracion", flag: () => gestionAdministracionManual = true },
+        { name: "precio_venta_estimado", flag: () => precioVentaManual = true }
+    ];
+
+    manualInputs.forEach(item => {
+        const el = document.querySelector(`[name="${item.name}"]`);
+        if (el) el.addEventListener("input", item.flag);
+    });
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    initManualFlags();
+    activarFormatoMonetarioInputs();
+    activarListeners();
+    // Centralized formatting only on DOMContentLoaded for all euro inputs
+    document.querySelectorAll('input[data-euro="true"]').forEach(i => {
+        const v = parseEuro(i.value);
+        if (v || v === 0) i.value = formatEuro(v);
+    });
+    recalcPrecioCompraInmueble();
+    recalcMediaValoraciones();
+});
+
 </script>
+
+
 {% endblock %}

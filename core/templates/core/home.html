@@ -12,7 +12,7 @@
     <div class="row g-4">
 
         <div class="col-md-4">
-            <a href="{% url 'simulador' %}" class="text-decoration-none text-dark">
+            <a href="{% url 'core:simulador_basico' %}" class="text-decoration-none text-dark">
                 <div class="card h-100 shadow-sm border-0 hover-card">
                     <div class="card-body text-center">
                         <div class="display-5 mb-3">🧮</div>
@@ -29,7 +29,7 @@
         </div>
 
         <div class="col-md-4">
-            <a href="{% url 'lista_proyectos' %}" class="text-decoration-none text-dark">
+            <a href="{% url 'core:lista_proyectos' %}" class="text-decoration-none text-dark">
                 <div class="card h-100 shadow-sm border-0 hover-card">
                     <div class="card-body text-center">
                         <div class="display-5 mb-3">📁</div>
@@ -46,7 +46,7 @@
         </div>
 
         <div class="col-md-4">
-            <a href="{% url 'clientes' %}" class="text-decoration-none text-dark">
+            <a href="{% url 'core:clientes' %}" class="text-decoration-none text-dark">
                 <div class="card h-100 shadow-sm border-0 hover-card">
                     <div class="card-body text-center">
                         <div class="display-5 mb-3">👤</div>
@@ -66,3 +66,5 @@
 </div>
 
 {% endblock %}
+
+home.html corregido

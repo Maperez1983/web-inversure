@@ -1,0 +1,190 @@
+{% extends "core/base.html" %}
+{% load static %}
+
+{% block title %}Simulador básico{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+
+    <h1 class="mb-4">Simulador básico</h1>
+
+    <form method="post">
+        {% csrf_token %}
+
+        <div class="row g-4">
+
+            <!-- COLUMNA IZQUIERDA -->
+            <div class="col-md-6">
+                <div class="card shadow-sm">
+                    <div class="card-body">
+
+                        <h5 class="card-title mb-3">Datos del inmueble</h5>
+
+                        <div class="mb-3">
+                            <label class="form-label">Dirección *</label>
+                            <input type="text" name="direccion" class="form-control"
+                                   value="{{ direccion|default:'' }}" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Referencia catastral</label>
+                            <input type="text" name="ref_catastral" class="form-control"
+                                   value="{{ ref_catastral|default:'' }}">
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
+            <!-- COLUMNA DERECHA -->
+            <div class="col-md-6">
+                <div class="card shadow-sm">
+                    <div class="card-body">
+
+                        <h5 class="card-title mb-3">Datos económicos</h5>
+
+                        <div class="mb-3">
+                            <label class="form-label">Precio de compra (€)</label>
+                            <input type="text" name="precio_compra" class="form-control euro-input"
+                                   placeholder="145.000,00"
+                                   value="{{ precio_compra|default:'' }}" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Precio de venta (€)</label>
+                            <input type="text" name="precio_venta" class="form-control euro-input"
+                                   placeholder="185.000,00"
+                                   value="{{ precio_venta|default:'' }}" required>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="mt-4 text-end">
+            <button type="submit" class="btn btn-inversure px-4">
+                Analizar viabilidad
+            </button>
+        </div>
+
+    </form>
+
+    {% if resultado %}
+    <hr class="my-4">
+
+    <div class="row g-4">
+
+        <div class="col-md-8">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+
+                    <h5 class="card-title mb-3">Resultado del análisis</h5>
+
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item">
+                            <strong>Inversión total:</strong>
+                            {{ resultado.inversion_total|floatformat:2 }} €
+                        </li>
+                        <li class="list-group-item">
+                            <strong>Beneficio:</strong>
+                            {{ resultado.beneficio|floatformat:2 }} €
+                        </li>
+                        <li class="list-group-item">
+                            <strong>ROI:</strong>
+                            {{ resultado.roi|floatformat:2 }} %
+                        </li>
+                        <li class="list-group-item">
+                            <strong>Viabilidad:</strong>
+                            {% if resultado.viable %}
+                                <span class="badge bg-success">Viable</span>
+                            {% else %}
+                                <span class="badge bg-danger">No viable</span>
+                            {% endif %}
+                        </li>
+                    </ul>
+
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+
+                    <h5 class="card-title mb-3">Acciones</h5>
+
+                    <form method="post" action="{% url 'core:guardar_simulacion' %}" class="mb-2">
+                        {% csrf_token %}
+                        <input type="hidden" name="direccion" value="{{ direccion }}">
+                        <input type="hidden" name="ref_catastral" value="{{ ref_catastral }}">
+                        <input type="hidden" name="precio_compra" value="{{ precio_compra }}">
+                        <input type="hidden" name="precio_venta" value="{{ precio_venta }}">
+                        <button class="btn btn-outline-primary w-100">
+                            Guardar simulación
+                        </button>
+                    </form>
+
+                    {% if simulacion %}
+                    <form method="post"
+                          action="{% url 'core:convertir_simulacion' simulacion.id %}"
+                          class="mb-2">
+                        {% csrf_token %}
+                        <button class="btn btn-success w-100">
+                            Convertir a proyecto
+                        </button>
+                    </form>
+                    {% endif %}
+
+                    <a href="{% url 'core:simulador_basico' %}" class="btn btn-outline-danger w-100">
+                        Borrar
+                    </a>
+
+                </div>
+            </div>
+        </div>
+
+    </div>
+    {% endif %}
+
+</div>
+<script>
+(function () {
+
+  function parseEuro(value) {
+    if (!value) return "";
+    return value
+      .replace(/\./g, "")
+      .replace(",", ".")
+      .replace(/[^\d.]/g, "");
+  }
+
+  function formatEuro(value) {
+    const num = Number(value);
+    if (isNaN(num)) return "";
+    return num.toLocaleString("es-ES", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    });
+  }
+
+  document.querySelectorAll(".euro-input").forEach(function (input) {
+
+    // Al escribir → NO tocamos nada (para no borrar cifras)
+    input.addEventListener("input", function () {
+      this.dataset.raw = parseEuro(this.value);
+    });
+
+    // Al salir del campo → formateamos bonito
+    input.addEventListener("blur", function () {
+      if (this.dataset.raw) {
+        this.value = formatEuro(this.dataset.raw);
+      }
+    });
+
+  });
+
+})();
+</script>
+{% endblock %}

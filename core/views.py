@@ -1,11 +1,16 @@
+
 from django.shortcuts import render, redirect
-from .models import Proyecto, Cliente
+from decimal import Decimal
+from .models import Proyecto, Cliente, Participacion, Simulacion
 
 try:
     import pandas as pd
 except ImportError:
     pd = None
 from django.contrib import messages
+import requests
+import xml.etree.ElementTree as ET
+from django.http import JsonResponse
 
 
 # Nueva vista home
@@ -29,7 +34,25 @@ def parse_euro(value):
         return 0.0
 
 
+def consultar_catastro_por_rc(ref_catastral):
+    if not ref_catastral:
+        return None
+
+    # URL oficial de consulta por referencia catastral (no scraping)
+    url = "https://www.sedecatastro.gob.es/Accesos/SECAccesos.aspx"
+
+    return {
+        "direccion": None,
+        "municipio": None,
+        "provincia": None,
+        "lat": None,
+        "lon": None,
+        "url": url,
+        "ref": ref_catastral,
+    }
+
 def simulador(request):
+    editable = True  # BLINDAJE: siempre inicializado para evitar UnboundLocalError
     proyectos = Proyecto.objects.all().order_by("-creado", "-id")
     resultado = None
     proyecto = None
@@ -40,22 +63,50 @@ def simulador(request):
         proyecto = Proyecto.objects.filter(nombre=nombre_get).first()
 
     # === REGLAS POR ESTADO (FASE A) ===
-    editable = True
-    if proyecto:
-        if proyecto.estado in ["cerrado", "cerrado_positivo"]:
-            editable = False
+    # editable se calculará tras POST
 
     if request.method == "POST":
         data = request.POST
+        accion = data.get("accion")
+        estado_post = data.get("estado") or (proyecto.estado if proyecto else "ESTUDIO")
+        estado_post = estado_post.lower()
+        # --- Cálculo puro sin guardar ---
+        solo_calculo = data.get("solo_calculo") == "1"
+        # === BLINDAJE GLOBAL OBLIGATORIO ===
+        plusvalia = 0.0
+        inmobiliaria = 0.0
+        gestion_comercial = 0.0
+        gestion_administracion = 0.0
+        gastos_venta = 0.0
 
         nombre_proyecto = data.get("nombre")
         proyecto = None
 
+        # PASO 1: Detección simplificada de cambio de estado
+        if accion == "cambiar_estado":
+            if nombre_proyecto:
+                proyecto = Proyecto.objects.filter(nombre=nombre_proyecto).first()
+                if proyecto:
+                    proyecto.estado = estado_post
+                    proyecto.save(update_fields=["estado"])
+            editable = True
+            if proyecto and proyecto.estado and proyecto.estado.lower() in ["cerrado", "cerrado_positivo"]:
+                editable = False
+            return render(
+                request,
+                "core/simulador.html",
+                {
+                    "proyectos": proyectos,
+                    "resultado": resultado,
+                    "proyecto": proyecto,
+                    "editable": editable,
+                },
+            )
+
         if nombre_proyecto:
             proyecto = Proyecto.objects.filter(nombre=nombre_proyecto).first()
-
             # BLOQUEO POR ESTADO: si el proyecto está cerrado positivamente, no se permite recalcular ni sobrescribir
-            if proyecto and proyecto.estado == "cerrado_positivo":
+            if proyecto and proyecto.estado and proyecto.estado.lower() == "cerrado_positivo":
                 resultado = {
                     "valor_adquisicion": round(proyecto.precio_compra_inmueble or 0, 2),
                     "precio_venta": round(proyecto.precio_venta_estimado or 0, 2),
@@ -67,6 +118,9 @@ def simulador(request):
                     "ratio_euro": 0,
                     "precio_minimo_venta": 0,
                 }
+                editable = True
+                if proyecto and proyecto.estado and proyecto.estado.lower() in ["cerrado", "cerrado_positivo"]:
+                    editable = False
                 return render(
                     request,
                     "core/simulador.html",
@@ -121,8 +175,6 @@ def simulador(request):
         7) Beneficio neto:
            Beneficio base – gastos de gestión
 
-           El sistema asume beneficio >= 0 en fase de estudio.
-
         8) ROI (Return on Investment):
            ROI = beneficio neto / valor de adquisición
 
@@ -163,21 +215,37 @@ def simulador(request):
         ]
         media_valoraciones = sum(valores) / len(valores) if valores else 0
 
-        # OPCIÓN 1: Precio de venta por defecto = media de valoraciones si no se introduce manualmente
-        if precio_venta == 0 and media_valoraciones > 0:
+        # REGLA DEFINITIVA INVERSURE:
+        # El precio estimado de venta SIEMPRE sale de la media de valoraciones
+        # (el usuario no define manualmente el precio de venta)
+        if media_valoraciones > 0:
             precio_venta = media_valoraciones
 
-        # === GASTOS AUTOMÁTICOS DE ADQUISICIÓN (solo sobre precio_escritura) ===
-        notaria = parse_euro(data.get("notaria"))
-        if notaria == 0:
+        # NOTARÍA (0,20 % con mínimo 500 €, editable, blindaje manual/proyecto)
+        notaria_post = parse_euro(data.get("notaria"))
+        if "notaria" in data and notaria_post >= 0:
+            notaria = notaria_post
+        elif proyecto and proyecto.notaria is not None:
+            notaria = float(proyecto.notaria)
+        else:
             notaria = max(float(precio_escritura) * 0.002, 500)
 
-        registro = parse_euro(data.get("registro"))
-        if registro == 0:
+        # REGISTRO (0,20 % con mínimo 500 €, editable, blindaje manual/proyecto)
+        registro_post = parse_euro(data.get("registro"))
+        if "registro" in data and registro_post >= 0:
+            registro = registro_post
+        elif proyecto and proyecto.registro is not None:
+            registro = float(proyecto.registro)
+        else:
             registro = max(float(precio_escritura) * 0.002, 500)
 
-        itp = parse_euro(data.get("itp"))
-        if itp == 0:
+        # ITP (2 % editable, blindaje manual/proyecto)
+        itp_post = parse_euro(data.get("itp"))
+        if "itp" in data and itp_post >= 0:
+            itp = itp_post
+        elif proyecto and proyecto.itp is not None:
+            itp = float(proyecto.itp)
+        else:
             itp = float(precio_escritura) * 0.02
 
         # === GASTOS MANUALES ===
@@ -196,6 +264,22 @@ def simulador(request):
         limpieza_periodica = parse_euro(data.get("limpieza_periodica"))
         ocupas = parse_euro(data.get("ocupas"))
 
+        # === OBRA (DETALLE POR PARTIDAS) ===
+        obra_demoliciones = parse_euro(data.get("obra_demoliciones"))
+        obra_albanileria = parse_euro(data.get("obra_albanileria"))
+        obra_fontaneria = parse_euro(data.get("obra_fontaneria"))
+        obra_electricidad = parse_euro(data.get("obra_electricidad"))
+        obra_carpinteria_interior = parse_euro(data.get("obra_carpinteria_interior"))
+        obra_carpinteria_exterior = parse_euro(data.get("obra_carpinteria_exterior"))
+        obra_cocina = parse_euro(data.get("obra_cocina"))
+        obra_banos = parse_euro(data.get("obra_banos"))
+        obra_pintura = parse_euro(data.get("obra_pintura"))
+        obra_otros = parse_euro(data.get("obra_otros"))
+
+        # === SEGURIDAD ===
+        cerrajero = parse_euro(data.get("cerrajero"))
+        alarma = parse_euro(data.get("alarma"))
+
         inversion_inicial = (
             float(reforma or 0)
             + float(limpieza_inicial or 0)
@@ -212,28 +296,69 @@ def simulador(request):
             + float(ocupas or 0)
         )
 
-        # === VALOR DE ADQUISICIÓN ===
-        valor_adquisicion = float(precio_escritura or 0) + float(notaria or 0) + float(registro or 0) + float(itp or 0) + float(otros_gastos_compra or 0) + float(inversion_inicial or 0) + float(gastos_recurrentes or 0)
+        # === VALOR DE ADQUISICIÓN (MODELO DEFINITIVO INVERSURE) ===
+        # (Precio adquisición + Gastos adquisición) + Inversión inicial + Obra + Seguridad + Gastos recurrentes
+
+        gastos_adquisicion = (
+            float(notaria or 0)
+            + float(registro or 0)
+            + float(itp or 0)
+            + float(otros_gastos_compra or 0)
+        )
+
+        gastos_obra = (
+            float(obra_demoliciones or 0)
+            + float(obra_albanileria or 0)
+            + float(obra_fontaneria or 0)
+            + float(obra_electricidad or 0)
+            + float(obra_carpinteria_interior or 0)
+            + float(obra_carpinteria_exterior or 0)
+            + float(obra_cocina or 0)
+            + float(obra_banos or 0)
+            + float(obra_pintura or 0)
+            + float(obra_otros or 0)
+        )
+
+        gastos_seguridad = (
+            float(cerrajero or 0)
+            + float(alarma or 0)
+        )
+
+        valor_adquisicion = (
+            float(precio_escritura or 0)
+            + gastos_adquisicion
+            + float(inversion_inicial or 0)
+            + gastos_obra
+            + gastos_seguridad
+            + float(gastos_recurrentes or 0)
+        )
 
         # === GASTOS DE VENTA ===
-        plusvalia = parse_euro(data.get("plusvalia"))
-        inmobiliaria = parse_euro(data.get("inmobiliaria"))
-        gastos_venta = float(plusvalia or 0) + float(inmobiliaria or 0)
+        if estado_post != "estudio":
+            plusvalia = float(parse_euro(data.get("plusvalia")) or 0)
+            inmobiliaria = float(parse_euro(data.get("inmobiliaria")) or 0)
+            gastos_venta = plusvalia + inmobiliaria
 
-        # === BENEFICIO BASE ===
-        beneficio_base = (precio_venta - gastos_venta) - valor_adquisicion
+        # === VALOR DE TRANSMISIÓN ===
+        valor_transmision = float(precio_venta or 0) - float(gastos_venta or 0)
+
+        # === BENEFICIO REAL ===
+        beneficio_base = valor_transmision - valor_adquisicion
 
         # === GESTIÓN COMERCIAL Y ADMINISTRACIÓN ===
         gestion_comercial = parse_euro(data.get("gestion_comercial"))
-        if gestion_comercial == 0 and beneficio_base > 0:
+        if "gestion_comercial" not in data and beneficio_base > 0 and (not proyecto or proyecto.gestion_comercial in (None, 0)):
             gestion_comercial = beneficio_base * 0.05
 
         gestion_administracion = parse_euro(data.get("gestion_administracion"))
-        if gestion_administracion == 0 and beneficio_base > 0:
+        if "gestion_administracion" not in data and beneficio_base > 0 and (not proyecto or proyecto.gestion_administracion in (None, 0)):
             gestion_administracion = beneficio_base * 0.05
 
         # === BENEFICIO NETO ===
-        beneficio_neto = beneficio_base - gestion_comercial - gestion_administracion
+        gestion_comercial = float(gestion_comercial or 0)
+        gestion_administracion = float(gestion_administracion or 0)
+
+        beneficio_neto = float(beneficio_base) - gestion_comercial - gestion_administracion
 
         # === ROI ===
         roi = (beneficio_neto / valor_adquisicion) * 100 if valor_adquisicion > 0 else 0
@@ -288,33 +413,85 @@ def simulador(request):
             meses_val = int(data.get("meses")) if data.get("meses") else None
             if proyecto:
                 # === ACTUALIZAR PROYECTO EXISTENTE (SIN PÉRDIDA DE DATOS) ===
-                # Asignar todos los campos manuales directamente desde el formulario
-                proyecto.meses = meses_val
-                proyecto.otros_gastos_compra = otros_gastos_compra
-                proyecto.reforma = reforma
-                proyecto.limpieza_inicial = limpieza_inicial
-                proyecto.mobiliario = mobiliario
-                proyecto.otros_puesta_marcha = otros_puesta_marcha
-                proyecto.comunidad = comunidad
-                proyecto.ibi = ibi
-                proyecto.seguros = seguros
-                proyecto.suministros = suministros
-                proyecto.limpieza_periodica = limpieza_periodica
-                proyecto.ocupas = ocupas
-                proyecto.plusvalia = plusvalia
-                proyecto.inmobiliaria = inmobiliaria
-                proyecto.val_idealista = val_idealista
-                proyecto.val_fotocasa = val_fotocasa
-                proyecto.val_registradores = val_registradores
-                proyecto.val_casafari = val_casafari
-                proyecto.val_tasacion = val_tasacion
+                # 2) Persistencia pasiva real: solo asignar si campo en POST (aunque vacío)
+                if "meses" in data:
+                    proyecto.meses = meses_val
+                if "otros_gastos_compra" in data:
+                    proyecto.otros_gastos_compra = otros_gastos_compra
+                if "reforma" in data:
+                    proyecto.reforma = reforma
+                if "limpieza_inicial" in data:
+                    proyecto.limpieza_inicial = limpieza_inicial
+                if "mobiliario" in data:
+                    proyecto.mobiliario = mobiliario
+                if "otros_puesta_marcha" in data:
+                    proyecto.otros_puesta_marcha = otros_puesta_marcha
+                if "comunidad" in data:
+                    proyecto.comunidad = comunidad
+                if "ibi" in data:
+                    proyecto.ibi = ibi
+                if "seguros" in data:
+                    proyecto.seguros = seguros
+                if "suministros" in data:
+                    proyecto.suministros = suministros
+                if "limpieza_periodica" in data:
+                    proyecto.limpieza_periodica = limpieza_periodica
+                if "ocupas" in data:
+                    proyecto.ocupas = ocupas
+                # 1) Blindaje por fase (estudio vs operación)
+                if estado_post.lower() != "estudio":
+                    if "plusvalia" in data:
+                        proyecto.plusvalia = plusvalia
+                    if "inmobiliaria" in data:
+                        proyecto.inmobiliaria = inmobiliaria
+                    # Obra
+                    if "obra_demoliciones" in data:
+                        proyecto.obra_demoliciones = obra_demoliciones
+                    if "obra_albanileria" in data:
+                        proyecto.obra_albanileria = obra_albanileria
+                    if "obra_fontaneria" in data:
+                        proyecto.obra_fontaneria = obra_fontaneria
+                    if "obra_electricidad" in data:
+                        proyecto.obra_electricidad = obra_electricidad
+                    if "obra_carpinteria_interior" in data:
+                        proyecto.obra_carpinteria_interior = obra_carpinteria_interior
+                    if "obra_carpinteria_exterior" in data:
+                        proyecto.obra_carpinteria_exterior = obra_carpinteria_exterior
+                    if "obra_cocina" in data:
+                        proyecto.obra_cocina = obra_cocina
+                    if "obra_banos" in data:
+                        proyecto.obra_banos = obra_banos
+                    if "obra_pintura" in data:
+                        proyecto.obra_pintura = obra_pintura
+                    if "obra_otros" in data:
+                        proyecto.obra_otros = obra_otros
+                    # Seguridad
+                    if "cerrajero" in data:
+                        proyecto.cerrajero = cerrajero
+                    if "alarma" in data:
+                        proyecto.alarma = alarma
+                # NO modificar estos campos en estudio (ni poner a 0)
+                if "val_idealista" in data:
+                    proyecto.val_idealista = val_idealista
+                if "val_fotocasa" in data:
+                    proyecto.val_fotocasa = val_fotocasa
+                if "val_registradores" in data:
+                    proyecto.val_registradores = val_registradores
+                if "val_casafari" in data:
+                    proyecto.val_casafari = val_casafari
+                if "val_tasacion" in data:
+                    proyecto.val_tasacion = val_tasacion
 
                 proyecto.precio_propiedad = precio_escritura
                 proyecto.precio_compra_inmueble = valor_adquisicion
                 proyecto.precio_venta_estimado = precio_venta
-                proyecto.notaria = notaria
-                proyecto.registro = registro
-                proyecto.itp = itp
+                # Blindaje de guardado solo si el campo viene en POST
+                if "notaria" in data:
+                    proyecto.notaria = notaria
+                if "registro" in data:
+                    proyecto.registro = registro
+                if "itp" in data:
+                    proyecto.itp = itp
 
                 proyecto.media_valoraciones = media_valoraciones
                 proyecto.gestion_comercial = gestion_comercial
@@ -323,9 +500,10 @@ def simulador(request):
                 proyecto.roi = roi
                 proyecto.estado = estado_post
 
-                proyecto.save()
+                if not solo_calculo:
+                    proyecto.save()
             else:
-                # Crear nuevo proyecto
+                # Crear nuevo proyecto (no blindamos en alta)
                 proyecto = Proyecto.objects.create(
                     nombre=nombre_proyecto,
                     precio_propiedad=precio_escritura,
@@ -359,9 +537,33 @@ def simulador(request):
                     gestion_comercial=gestion_comercial,
                     gestion_administracion=gestion_administracion,
                     meses=meses_val,
+                    obra_demoliciones=obra_demoliciones,
+                    obra_albanileria=obra_albanileria,
+                    obra_fontaneria=obra_fontaneria,
+                    obra_electricidad=obra_electricidad,
+                    obra_carpinteria_interior=obra_carpinteria_interior,
+                    obra_carpinteria_exterior=obra_carpinteria_exterior,
+                    obra_cocina=obra_cocina,
+                    obra_banos=obra_banos,
+                    obra_pintura=obra_pintura,
+                    obra_otros=obra_otros,
+                    cerrajero=cerrajero,
+                    alarma=alarma,
                 )
 
     # No refrescar desde BD tras POST
+
+        editable = True
+        if proyecto and proyecto.estado and proyecto.estado.lower() in ["cerrado", "cerrado_positivo"]:
+            editable = False
+
+
+    # === CONSOLIDAR CÁLCULO DE FASE (SOLO AQUÍ) ===
+    fase = "estudio"
+    if proyecto and proyecto.estado:
+        fase = proyecto.estado.lower()
+    elif request.POST.get("estado"):
+        fase = request.POST.get("estado").lower()
 
     return render(
         request,
@@ -371,11 +573,13 @@ def simulador(request):
             "resultado": resultado,
             "proyecto": proyecto,
             "editable": editable,
+            "fase": fase,
         }
     )
 
 
 from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_GET
 
 @require_POST
 def cambiar_estado_proyecto(request, proyecto_id):
@@ -400,20 +604,81 @@ def cambiar_estado_proyecto(request, proyecto_id):
 
     return redirect("lista_proyectos")
 
-# === BORRAR PROYECTO DEFINITIVAMENTE ===
-def borrar_proyecto(request, nombre):
-    proyecto = Proyecto.objects.filter(nombre=nombre).first()
-    if proyecto:
-        proyecto.delete()
-    return redirect("simulador")
 
 
+
+ 
+# =========================
+# AÑADIR INVERSOR A PROYECTO
+# =========================
+def participacion_create(request, proyecto_id):
+    proyecto = Proyecto.objects.filter(id=proyecto_id).first()
+    if not proyecto:
+        return redirect("lista_proyectos")
+
+    clientes = Cliente.objects.all().order_by("nombre")
+
+    if request.method == "POST":
+        cliente_id = request.POST.get("cliente")
+        importe = request.POST.get("importe_invertido")
+
+        if cliente_id and importe:
+            try:
+                importe_val = float(
+                    str(importe)
+                    .replace(".", "")
+                    .replace(",", ".")
+                    .replace("€", "")
+                    .strip()
+                )
+            except Exception:
+                importe_val = 0
+
+            porcentaje = 0
+            if proyecto.precio_compra_inmueble and proyecto.precio_compra_inmueble > 0:
+                porcentaje = (importe_val / proyecto.precio_compra_inmueble) * 100
+
+            Participacion.objects.create(
+                proyecto=proyecto,
+                cliente_id=cliente_id,
+                importe_invertido=importe_val,
+                porcentaje_participacion=porcentaje,
+            )
+
+        return redirect("participacion_create", proyecto_id=proyecto.id)
+
+    participaciones = Participacion.objects.filter(proyecto=proyecto)
+
+    return render(
+        request,
+        "core/participacion_form.html",
+        {
+            "proyecto": proyecto,
+            "clientes": clientes,
+            "participaciones": participaciones,
+        },
+    )
 def lista_proyectos(request):
-    proyectos = Proyecto.objects.all().order_by("-fecha", "-id")
+    estado = request.GET.get("estado")
+
+    # Proyectos (filtrados por estado si se indica)
+    proyectos = Proyecto.objects.all().order_by("-id")
+    if estado:
+        proyectos = proyectos.filter(estado__iexact=estado)
+
+    # Simulaciones que NO están convertidas en proyecto
+    simulaciones_pendientes = Simulacion.objects.filter(
+        convertida=False
+    ).order_by("-id")
+
     return render(
         request,
         "core/lista_proyectos.html",
-        {"proyectos": proyectos},
+        {
+            "proyectos": proyectos,
+            "simulaciones_pendientes": simulaciones_pendientes,
+            "estado_actual": estado,
+        },
     )
 
 
@@ -427,6 +692,7 @@ def clientes(request):
             "clientes": clientes,
         },
     )
+
 
 
 # Nueva vista para crear cliente
@@ -447,6 +713,38 @@ def cliente_create(request):
         return redirect("clientes")
 
     return render(request, "core/clientes_form.html")
+
+
+# Editar cliente existente
+def cliente_edit(request, cliente_id):
+    cliente = Cliente.objects.filter(id=cliente_id).first()
+    if not cliente:
+        return redirect("clientes")
+
+    if request.method == "POST":
+        data = request.POST
+
+        cliente.tipo_persona = data.get("tipo_persona")
+        cliente.nombre = data.get("nombre")
+        cliente.dni_cif = data.get("dni_cif")
+        cliente.email = data.get("email") or None
+        cliente.telefono = data.get("telefono") or None
+        cliente.iban = data.get("iban") or None
+        cliente.direccion_postal = data.get("direccion_postal") or None
+        cliente.cuota_abonada = True if data.get("cuota_abonada") == "on" else False
+        cliente.presente_en_comunidad = True if data.get("presente_en_comunidad") == "on" else False
+        cliente.observaciones = data.get("observaciones") or None
+
+        cliente.save()
+        return redirect("clientes")
+
+    return render(
+        request,
+        "core/clientes_form.html",
+        {
+            "cliente": cliente,
+        },
+    )
 
 
 # Vista para importar clientes desde Excel
@@ -506,3 +804,194 @@ def clientes_import(request):
         return redirect("clientes")
 
     return render(request, "core/clientes_import.html")
+from django.views.decorators.http import require_POST
+
+
+
+# === CONVERTIR SIMULACIÓN EN PROYECTO (NUEVA VERSIÓN CORRECTA) ===
+from django.views.decorators.http import require_POST
+
+@require_POST
+def convertir_simulacion_a_proyecto(request, simulacion_id):
+    """
+    Convierte una simulación básica en un proyecto real.
+    Mapeo correcto de campos:
+    - Inmueble (simulación.nombre / direccion) -> Proyecto.direccion
+    - Compra (simulación.precio_compra) -> Proyecto.precio_propiedad (precio escritura)
+    - Venta (simulación.precio_venta_estimado) -> Proyecto.val_tasacion
+    """
+    simulacion = Simulacion.objects.filter(
+        id=simulacion_id,
+        convertida=False
+    ).first()
+
+    if not simulacion:
+        # No existe o ya convertida: volvemos a proyectos
+        return redirect("lista_proyectos")
+
+    # 1) Determinar dirección del inmueble
+    direccion = (
+        simulacion.direccion
+        or simulacion.nombre
+        or f"Inmueble simulación #{simulacion.id}"
+    )
+
+    # 2) Crear proyecto con los campos correctamente mapeados (bloque exacto con Decimal)
+    proyecto = Proyecto.objects.create(
+        nombre=f"Proyecto - {direccion}",
+        direccion=direccion,
+        # Precio de escritura
+        precio_propiedad=simulacion.precio_compra,
+        # Valor de adquisición (Decimal seguro)
+        precio_compra_inmueble=simulacion.precio_compra * Decimal("1.10"),
+        # Tasación / valor venta
+        val_tasacion=simulacion.precio_venta_estimado,
+        roi=simulacion.roi,
+        beneficio_neto=simulacion.beneficio,
+        estado="estudio",
+        simulacion_origen=simulacion,
+    )
+
+    # 3) Marcar simulación como convertida (deja de aparecer en pendientes)
+    simulacion.convertida = True
+    simulacion.save(update_fields=["convertida"])
+
+    # 4) Redirigir al formulario de proyecto (simulador completo)
+    return redirect(f"/simulador/?proyecto={proyecto.nombre}")
+
+
+
+
+def simulador_basico(request):
+    # Valores por defecto (para que NUNCA se borren)
+    direccion = ""
+    ref_catastral = ""
+    precio_compra_raw = ""
+    precio_venta_raw = ""
+    resultado = None
+
+    simulacion = None
+    if request.method == "POST":
+        direccion = request.POST.get("direccion", "")
+        ref_catastral = request.POST.get("ref_catastral", "")
+        precio_compra_raw = request.POST.get("precio_compra", "")
+        precio_venta_raw = request.POST.get("precio_venta", "")
+
+        def parse_euro(valor):
+            try:
+                return float(
+                    str(valor)
+                    .replace(".", "")
+                    .replace(",", ".")
+                    .replace("€", "")
+                    .strip()
+                )
+            except Exception:
+                return 0.0
+
+        precio_compra = parse_euro(precio_compra_raw)
+        precio_venta = parse_euro(precio_venta_raw)
+
+        beneficio = precio_venta - precio_compra
+        roi = (beneficio / precio_compra * 100) if precio_compra > 0 else 0
+
+        resultado = {
+            "inversion_total": round(precio_compra, 2),
+            "beneficio": round(beneficio, 2),
+            "roi": round(roi, 2),
+            # REGLA EXACTA QUE PEDISTE
+            "viable": beneficio >= 30000 or roi >= 15,
+        }
+
+        # Crear simulación en BD con nombre/dirección y todos los campos clave
+        simulacion = Simulacion.objects.create(
+            nombre=direccion if direccion else None,
+            direccion=direccion,
+            ref_catastral=ref_catastral,
+            precio_compra=precio_compra,
+            precio_venta_estimado=precio_venta,
+            beneficio=beneficio,
+            roi=roi,
+            viable=resultado["viable"],
+        )
+
+        return render(
+            request,
+            "core/simulador_basico.html",
+            {
+                "direccion": direccion,
+                "ref_catastral": ref_catastral,
+                "precio_compra": precio_compra_raw,
+                "precio_venta": precio_venta_raw,
+                "resultado": resultado,
+                "simulacion": simulacion,
+            },
+        )
+
+    return render(
+        request,
+        "core/simulador_basico.html",
+        {
+            "direccion": direccion,
+            "ref_catastral": ref_catastral,
+            "precio_compra": precio_compra_raw,
+            "precio_venta": precio_venta_raw,
+            "resultado": resultado,
+        },
+    )
+
+
+
+from django.http import HttpResponse
+from django.views.decorators.http import require_POST
+
+@require_POST
+def borrar_simulacion(request, simulacion_id):
+    """
+    Borrado profesional:
+    - Elimina la simulación
+    - No redirige
+    - Devuelve 204 para uso con fetch/AJAX
+    """
+    Simulacion.objects.filter(id=simulacion_id).delete()
+    return HttpResponse(status=204)
+
+
+# === Consulta Catastro por Referencia Catastral (GET-compatible endpoint) ===
+@require_GET
+def obtener_datos_catastro_get(request):
+    ref = request.GET.get("ref")
+
+    if not ref:
+        return JsonResponse({"error": "Referencia catastral vacía"}, status=400)
+
+    datos = consultar_catastro_por_rc(ref)
+
+    if not datos:
+        return JsonResponse({"error": "No se pudo consultar Catastro"}, status=404)
+
+    # 🔒 Guardado temporal en sesión (PASO CLAVE)
+    request.session["catastro_tmp"] = {
+        "direccion": datos.get("direccion"),
+        "lat": datos.get("lat"),
+        "lon": datos.get("lon"),
+    }
+
+    return JsonResponse(datos)
+
+# === Consulta Catastro por Referencia Catastral (API AJAX) ===
+from django.views.decorators.http import require_POST
+
+@require_POST
+def obtener_datos_catastro(request):
+    ref = request.POST.get("ref_catastral")
+
+    if not ref:
+        return JsonResponse({"error": "Referencia catastral vacía"}, status=400)
+
+    datos = consultar_catastro_por_rc(ref)
+
+    if not datos:
+        return JsonResponse({"error": "No se pudo consultar Catastro"}, status=404)
+
+    return JsonResponse(datos)

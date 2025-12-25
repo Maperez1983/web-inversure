@@ -34,47 +34,23 @@
             margin: 40px auto;
             padding: 0 20px;
         }
+        .logo-inversure {
+            height: 48px;
+            width: auto;
+            max-height: 48px;
+            object-fit: contain;
+            display: inline-block;
+        }
     </style>
 </head>
 
 <body>
 
 <header class="topbar">
-    <div class="topbar-inner">
-
-        <!-- Izquierda (vacío) -->
-        <div></div>
-
-        <!-- Centro: LOGO -->
-        <div class="brand">
-            <a href="{% url 'home' %}">
-                <img src="{% static 'core/logo.png' %}" alt="Inversure">
-            </a>
-        </div>
-
-        <!-- Derecha: selector proyectos -->
-        {% if proyectos %}
-        <div class="topbar-right">
-            <select class="form-select"
-                    style="max-width:260px;"
-                    onchange="
-                        if (this.value !== '') {
-                            window.location.href = '/?proyecto=' + encodeURIComponent(this.value);
-                        } else {
-                            window.location.href = '/';
-                        }
-                    ">
-                <option value="">— Nuevo proyecto —</option>
-                {% for p in proyectos %}
-                    <option value="{{ p.nombre }}"
-                        {% if proyecto and proyecto.nombre == p.nombre %}selected{% endif %}>
-                        {{ p.nombre }}
-                    </option>
-                {% endfor %}
-            </select>
-        </div>
-        {% endif %}
-
+    <div class="container text-center py-3">
+        <a href="{% url 'core:home' %}">
+            <img src="{% static 'core/logo.png' %}" alt="Inversure" class="logo-inversure">
+        </a>
     </div>
 </header>
 
