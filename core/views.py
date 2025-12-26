@@ -18,563 +18,310 @@ def home(request):
     return render(request, "core/home.html")
 
 
+from decimal import Decimal, InvalidOperation
+
 def parse_euro(value):
     if value in (None, ""):
-        return 0.0
+        return Decimal("0")
     try:
-        return float(
+        cleaned = (
             str(value)
-            .replace(".", "")
-            .replace(",", ".")
             .replace("€", "")
             .replace("\xa0", "")
+            .replace(".", "")
+            .replace(",", ".")
             .strip()
         )
-    except Exception:
-        return 0.0
+        return Decimal(cleaned)
+    except (InvalidOperation, ValueError):
+        return Decimal("0")
 
 
 def consultar_catastro_por_rc(ref_catastral):
+    """
+    Consulta SOAP REAL al Catastro a partir de una referencia catastral.
+    Devuelve un dict con direccion, lat, lon si existen.
+    Nunca lanza excepción: devuelve None si no hay datos útiles.
+    """
     if not ref_catastral:
         return None
 
-    # URL oficial de consulta por referencia catastral (no scraping)
-    url = "https://www.sedecatastro.gob.es/Accesos/SECAccesos.aspx"
+    url = "https://ovc.catastro.meh.es/ovcservweb/OVCSWLocalizacionRC/OVCSWLocalizacionRC.asmx"
 
-    return {
-        "direccion": None,
-        "municipio": None,
-        "provincia": None,
-        "lat": None,
-        "lon": None,
-        "url": url,
-        "ref": ref_catastral,
+    headers = {
+        "Content-Type": "text/xml; charset=utf-8",
+        "SOAPAction": "http://www.catastro.meh.es/Consulta_RCCOOR",
+        "User-Agent": "Inversure/1.0",
     }
 
-def simulador(request):
-    editable = True  # BLINDAJE: siempre inicializado para evitar UnboundLocalError
-    proyectos = Proyecto.objects.all().order_by("-creado", "-id")
+    soap_body = f"""<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+  <soap:Body>
+    <Consulta_RCCOOR xmlns="http://www.catastro.meh.es/">
+      <RC>{ref_catastral}</RC>
+    </Consulta_RCCOOR>
+  </soap:Body>
+</soap:Envelope>
+"""
+
+    try:
+        response = requests.post(
+            url,
+            data=soap_body.encode("utf-8"),
+            headers=headers,
+            timeout=15,
+        )
+
+        if response.status_code != 200:
+            print("❌ Catastro HTTP error:", response.status_code)
+            return None
+
+        xml = response.content.decode("utf-8", errors="ignore")
+        print("📦 XML Catastro recibido:\n", xml)
+
+        root = ET.fromstring(xml)
+
+        # Buscar campos SIN depender de namespaces estrictos
+        def find_text(tag):
+            el = root.find(f".//{tag}")
+            return el.text.strip() if el is not None and el.text else None
+
+        direccion = find_text("ldt")
+        municipio = find_text("nmp")
+        provincia = find_text("npp")
+
+        direccion_completa = None
+        if direccion and municipio and provincia:
+            direccion_completa = f"{direccion}, {municipio}, {provincia}"
+        elif direccion:
+            direccion_completa = direccion
+
+        lat = find_text("xcen")
+        lon = find_text("ycen")
+
+        lat_val = float(lat) if lat else None
+        lon_val = float(lon) if lon else None
+
+        if not direccion_completa and lat_val is None and lon_val is None:
+            print("⚠️ Catastro respondió sin datos útiles")
+            return None
+
+        return {
+            "direccion": direccion_completa,
+            "lat": lat_val,
+            "lon": lon_val,
+        }
+
+    except Exception as e:
+        print("❌ Error procesando SOAP Catastro:", e)
+        return None
+
+from django.shortcuts import get_object_or_404
+
+def simulador(request, proyecto_id=None):
+    """
+    Vista saneada del simulador:
+    - Nunca borra datos existentes
+    - Calcular ≠ Guardar
+    - No formatea euros
+    - No toca mapa ni JS
+    """
+
+    proyecto = get_object_or_404(Proyecto, id=proyecto_id) if proyecto_id else None
     resultado = None
-    proyecto = None
+    editable = True
 
-    # === CARGA DE PROYECTO POR NOMBRE (GET) ===
-    nombre_get = request.GET.get("proyecto")
-    if nombre_get:
-        proyecto = Proyecto.objects.filter(nombre=nombre_get).first()
-
-    # === REGLAS POR ESTADO (FASE A) ===
-    # editable se calculará tras POST
+    def safe_post(name):
+        """
+        Devuelve:
+        - "__MISSING__" si el campo NO viene en el POST (no tocar en BD)
+        - None si viene vacío (permitir borrar explícito)
+        - valor si viene informado
+        """
+        if name not in request.POST:
+            return "__MISSING__"
+        val = request.POST.get(name)
+        return None if val == "" else val
 
     if request.method == "POST":
-        data = request.POST
-        accion = data.get("accion")
-        estado_post = data.get("estado") or (proyecto.estado if proyecto else "ESTUDIO")
-        estado_post = estado_post.lower()
-        # --- Cálculo puro sin guardar ---
-        solo_calculo = data.get("solo_calculo") == "1"
-        # === BLINDAJE GLOBAL OBLIGATORIO ===
-        plusvalia = 0.0
-        inmobiliaria = 0.0
-        gestion_comercial = 0.0
-        gestion_administracion = 0.0
-        gastos_venta = 0.0
+        accion = request.POST.get("accion")
 
-        nombre_proyecto = data.get("nombre")
-        proyecto = None
+        # =========================
+        # GUARDAR DATOS (SIN CALCULAR)
+        # =========================
+        if accion in ("guardar", "convertir") and proyecto:
+            campos = [
+                # Identificación
+                "nombre", "direccion", "ref_catastral", "estado",
 
-        # PASO 1: Detección simplificada de cambio de estado
-        if accion == "cambiar_estado":
-            if nombre_proyecto:
-                proyecto = Proyecto.objects.filter(nombre=nombre_proyecto).first()
-                if proyecto:
-                    proyecto.estado = estado_post
-                    proyecto.save(update_fields=["estado"])
-            editable = True
-            if proyecto and proyecto.estado and proyecto.estado.lower() in ["cerrado", "cerrado_positivo"]:
-                editable = False
-            return render(
-                request,
-                "core/simulador.html",
-                {
-                    "proyectos": proyectos,
-                    "resultado": resultado,
-                    "proyecto": proyecto,
-                    "editable": editable,
-                },
-            )
+                # Datos principales
+                "precio_propiedad", "venta_estimada", "meses",
 
-        if nombre_proyecto:
-            proyecto = Proyecto.objects.filter(nombre=nombre_proyecto).first()
-            # BLOQUEO POR ESTADO: si el proyecto está cerrado positivamente, no se permite recalcular ni sobrescribir
-            if proyecto and proyecto.estado and proyecto.estado.lower() == "cerrado_positivo":
-                resultado = {
-                    "valor_adquisicion": round(proyecto.precio_compra_inmueble or 0, 2),
-                    "precio_venta": round(proyecto.precio_venta_estimado or 0, 2),
-                    "beneficio_neto": round(proyecto.beneficio_neto or 0, 2),
-                    "roi": round(proyecto.roi or 0, 2),
-                    "viable": (proyecto.roi or 0) >= 15,
-                    "margen_neto": 0,
-                    "colchon_seguridad": 0,
-                    "ratio_euro": 0,
-                    "precio_minimo_venta": 0,
-                }
-                editable = True
-                if proyecto and proyecto.estado and proyecto.estado.lower() in ["cerrado", "cerrado_positivo"]:
-                    editable = False
-                return render(
-                    request,
-                    "core/simulador.html",
-                    {
-                        "proyectos": proyectos,
-                        "resultado": resultado,
-                        "proyecto": proyecto,
-                        "editable": editable,
-                    },
-                )
+                # Gastos de adquisición
+                "notaria", "registro", "itp", "otros_gastos_compra",
 
-        """
-        ============================================================
-        MOTOR DE CÁLCULO – SIMULADOR INVERSURE (CIERRE DEFINITIVO)
-        ============================================================
+                # Inversión inicial
+                "limpieza_inicial", "mobiliario", "otros_puesta_marcha",
 
-        Este bloque define las reglas económicas base del simulador.
-        Estas reglas se consideran ESTABLES y NO deben modificarse
-        sin decisión estratégica expresa.
+                # OBRA 4A
+                "obra_demoliciones",
+                "obra_albanileria",
+                "obra_fontaneria",
+                "obra_electricidad",
+                "obra_carpinteria_interior",
+                "obra_carpinteria_exterior",
+                "obra_cocina",
+                "obra_banos",
+                "obra_pintura",
+                "obra_otros",
 
-        --- DEFINICIONES CLAVE ---
+                # SEGURIDAD 4B
+                "seguridad_cerrajero",
+                "seguridad_alarma",
 
-        1) Precio de escritura
-           Valor introducido por el usuario en escritura pública.
+                # REFORMA (resultado)
+                "reforma",
 
-        2) Gastos automáticos de adquisición (sobre precio escritura):
-           - Notaría: 0,20 % (mínimo 500 €)
-           - Registro: 0,20 % (mínimo 500 €)
-           - ITP: 2 %
+                # Gastos recurrentes
+                "comunidad", "ibi", "seguros", "suministros",
+                "limpieza_periodica", "ocupas",
 
-        3) Valor de adquisición:
-           Precio de escritura
-           + gastos de adquisición
-           + inversión inicial
-           + gastos recurrentes
+                # Gastos de venta
+                "plusvalia", "inmobiliaria",
 
-           (Los gastos de venta NO forman parte del valor de adquisición)
+                # Valoraciones
+                "val_idealista", "val_fotocasa", "val_registradores",
+                "val_casafari", "val_tasacion",
+            ]
 
-        4) Precio de venta:
-           Por defecto: media de valoraciones.
-           Puede ser sobrescrito manualmente para simulación de escenarios.
+            CAMPOS_NUMERICOS = {
+                # Datos principales
+                "precio_propiedad",
+                "venta_estimada",
+                "meses",
 
-        5) Beneficio base:
-           (Precio de venta – gastos de venta) – valor de adquisición
+                # Gastos de adquisición
+                "notaria",
+                "registro",
+                "itp",
+                "otros_gastos_compra",
 
-        6) Gastos de gestión:
-           - Gestión comercial: 5 % del beneficio base
-           - Gestión administrativa: 5 % del beneficio base
+                # Inversión inicial
+                "limpieza_inicial",
+                "mobiliario",
+                "otros_puesta_marcha",
 
-           (Solo se aplican sobre beneficio, nunca sobre costes)
+                # OBRA 4A
+                "obra_demoliciones",
+                "obra_albanileria",
+                "obra_fontaneria",
+                "obra_electricidad",
+                "obra_carpinteria_interior",
+                "obra_carpinteria_exterior",
+                "obra_cocina",
+                "obra_banos",
+                "obra_pintura",
+                "obra_otros",
 
-        7) Beneficio neto:
-           Beneficio base – gastos de gestión
+                # SEGURIDAD 4B
+                "seguridad_cerrajero",
+                "seguridad_alarma",
 
-        8) ROI (Return on Investment):
-           ROI = beneficio neto / valor de adquisición
+                # REFORMA (resultado)
+                "reforma",
 
-        9) Viabilidad:
-           Una operación se considera VIABLE si:
-           ROI >= 15 %
+                # Gastos recurrentes
+                "comunidad",
+                "ibi",
+                "seguros",
+                "suministros",
+                "limpieza_periodica",
+                "ocupas",
 
-        --- NOTAS IMPORTANTES ---
+                # Gastos de venta
+                "plusvalia",
+                "inmobiliaria",
 
-        - El botón "Calcular" siempre aplica estas reglas.
-        - El formulario no redefine la lógica, solo aporta datos.
-        - UX, escenarios y visualizaciones NO alteran este motor.
-        - Este motor es la base para futuras operaciones reales.
+                # Valoraciones
+                "val_idealista",
+                "val_fotocasa",
+                "val_registradores",
+                "val_casafari",
+                "val_tasacion",
+            }
 
-        ============================================================
-        """
+            for campo in campos:
+                valor = safe_post(campo)
 
-        # === DATOS BASE ===
-        # SIEMPRE leer todos los datos relevantes directamente del formulario (POST)
-        precio_escritura = parse_euro(data.get("precio_propiedad"))
-        precio_venta = parse_euro(data.get("precio_venta_estimado"))
+                # Campo no enviado → NO tocar
+                if valor == "__MISSING__":
+                    continue
 
-        # === VALORACIONES ===
-        val_idealista = parse_euro(data.get("val_idealista"))
-        val_fotocasa = parse_euro(data.get("val_fotocasa"))
-        val_registradores = parse_euro(data.get("val_registradores"))
-        val_casafari = parse_euro(data.get("val_casafari"))
-        val_tasacion = parse_euro(data.get("val_tasacion"))
+                # Campo enviado vacío → permitir borrar
+                if valor is None:
+                    setattr(proyecto, campo, None)
+                    continue
 
-        valores = [
-            v for v in [
-                val_idealista,
-                val_fotocasa,
-                val_registradores,
-                val_casafari,
-                val_tasacion,
-            ] if v > 0
-        ]
-        media_valoraciones = sum(valores) / len(valores) if valores else 0
+                # Campo con valor
+                if campo in CAMPOS_NUMERICOS:
+                    setattr(proyecto, campo, parse_euro(valor))
+                else:
+                    setattr(proyecto, campo, valor)
 
-        # REGLA DEFINITIVA INVERSURE:
-        # El precio estimado de venta SIEMPRE sale de la media de valoraciones
-        # (el usuario no define manualmente el precio de venta)
-        if media_valoraciones > 0:
+            proyecto.save()
+
+            if accion == "guardar":
+                return redirect("core:simulador", proyecto_id=proyecto.id)
+
+            if accion == "convertir":
+                proyecto.estado = "operacion"
+                proyecto.save(update_fields=["estado"])
+                return redirect("core:lista_proyectos")
+
+        # =========================
+        # CALCULAR (SIN GUARDAR)
+        # =========================
+        if accion == "calcular" and proyecto:
+            precio_escritura = parse_euro(request.POST.get("precio_propiedad"))
+            valores = [
+                parse_euro(request.POST.get("val_idealista")),
+                parse_euro(request.POST.get("val_fotocasa")),
+                parse_euro(request.POST.get("val_registradores")),
+                parse_euro(request.POST.get("val_casafari")),
+                parse_euro(request.POST.get("val_tasacion")),
+            ]
+            valores = [v for v in valores if v > 0]
+            media_valoraciones = sum(valores) / len(valores) if valores else 0
+
+            notaria = max(precio_escritura * Decimal("0.002"), Decimal("500"))
+            registro = max(precio_escritura * Decimal("0.002"), Decimal("500"))
+            itp = precio_escritura * Decimal("0.02")
+
+            gastos_adquisicion = notaria + registro + itp
+            valor_adquisicion = precio_escritura + gastos_adquisicion
             precio_venta = media_valoraciones
+            beneficio = precio_venta - valor_adquisicion
+            roi = (beneficio / valor_adquisicion * Decimal("100")) if valor_adquisicion else Decimal("0")
 
-        # NOTARÍA (0,20 % con mínimo 500 €, editable, blindaje manual/proyecto)
-        notaria_post = parse_euro(data.get("notaria"))
-        if "notaria" in data and notaria_post >= 0:
-            notaria = notaria_post
-        elif proyecto and proyecto.notaria is not None:
-            notaria = float(proyecto.notaria)
-        else:
-            notaria = max(float(precio_escritura) * 0.002, 500)
+            resultado = {
+                "valor_adquisicion": round(valor_adquisicion, 2),
+                "precio_venta": round(precio_venta, 2),
+                "beneficio_neto": round(beneficio, 2),
+                "roi": round(roi, 2),
+                "viable": roi >= 15,
+            }
 
-        # REGISTRO (0,20 % con mínimo 500 €, editable, blindaje manual/proyecto)
-        registro_post = parse_euro(data.get("registro"))
-        if "registro" in data and registro_post >= 0:
-            registro = registro_post
-        elif proyecto and proyecto.registro is not None:
-            registro = float(proyecto.registro)
-        else:
-            registro = max(float(precio_escritura) * 0.002, 500)
-
-        # ITP (2 % editable, blindaje manual/proyecto)
-        itp_post = parse_euro(data.get("itp"))
-        if "itp" in data and itp_post >= 0:
-            itp = itp_post
-        elif proyecto and proyecto.itp is not None:
-            itp = float(proyecto.itp)
-        else:
-            itp = float(precio_escritura) * 0.02
-
-        # === GASTOS MANUALES ===
-        otros_gastos_compra = parse_euro(data.get("otros_gastos_compra"))
-
-        # Inversión inicial y gastos recurrentes
-        reforma = parse_euro(data.get("reforma"))
-        limpieza_inicial = parse_euro(data.get("limpieza_inicial"))
-        mobiliario = parse_euro(data.get("mobiliario"))
-        otros_puesta_marcha = parse_euro(data.get("otros_puesta_marcha"))
-
-        comunidad = parse_euro(data.get("comunidad"))
-        ibi = parse_euro(data.get("ibi"))
-        seguros = parse_euro(data.get("seguros"))
-        suministros = parse_euro(data.get("suministros"))
-        limpieza_periodica = parse_euro(data.get("limpieza_periodica"))
-        ocupas = parse_euro(data.get("ocupas"))
-
-        # === OBRA (DETALLE POR PARTIDAS) ===
-        obra_demoliciones = parse_euro(data.get("obra_demoliciones"))
-        obra_albanileria = parse_euro(data.get("obra_albanileria"))
-        obra_fontaneria = parse_euro(data.get("obra_fontaneria"))
-        obra_electricidad = parse_euro(data.get("obra_electricidad"))
-        obra_carpinteria_interior = parse_euro(data.get("obra_carpinteria_interior"))
-        obra_carpinteria_exterior = parse_euro(data.get("obra_carpinteria_exterior"))
-        obra_cocina = parse_euro(data.get("obra_cocina"))
-        obra_banos = parse_euro(data.get("obra_banos"))
-        obra_pintura = parse_euro(data.get("obra_pintura"))
-        obra_otros = parse_euro(data.get("obra_otros"))
-
-        # === SEGURIDAD ===
-        cerrajero = parse_euro(data.get("cerrajero"))
-        alarma = parse_euro(data.get("alarma"))
-
-        inversion_inicial = (
-            float(reforma or 0)
-            + float(limpieza_inicial or 0)
-            + float(mobiliario or 0)
-            + float(otros_puesta_marcha or 0)
-        )
-
-        gastos_recurrentes = (
-            float(comunidad or 0)
-            + float(ibi or 0)
-            + float(seguros or 0)
-            + float(suministros or 0)
-            + float(limpieza_periodica or 0)
-            + float(ocupas or 0)
-        )
-
-        # === VALOR DE ADQUISICIÓN (MODELO DEFINITIVO INVERSURE) ===
-        # (Precio adquisición + Gastos adquisición) + Inversión inicial + Obra + Seguridad + Gastos recurrentes
-
-        gastos_adquisicion = (
-            float(notaria or 0)
-            + float(registro or 0)
-            + float(itp or 0)
-            + float(otros_gastos_compra or 0)
-        )
-
-        gastos_obra = (
-            float(obra_demoliciones or 0)
-            + float(obra_albanileria or 0)
-            + float(obra_fontaneria or 0)
-            + float(obra_electricidad or 0)
-            + float(obra_carpinteria_interior or 0)
-            + float(obra_carpinteria_exterior or 0)
-            + float(obra_cocina or 0)
-            + float(obra_banos or 0)
-            + float(obra_pintura or 0)
-            + float(obra_otros or 0)
-        )
-
-        gastos_seguridad = (
-            float(cerrajero or 0)
-            + float(alarma or 0)
-        )
-
-        valor_adquisicion = (
-            float(precio_escritura or 0)
-            + gastos_adquisicion
-            + float(inversion_inicial or 0)
-            + gastos_obra
-            + gastos_seguridad
-            + float(gastos_recurrentes or 0)
-        )
-
-        # === GASTOS DE VENTA ===
-        if estado_post != "estudio":
-            plusvalia = float(parse_euro(data.get("plusvalia")) or 0)
-            inmobiliaria = float(parse_euro(data.get("inmobiliaria")) or 0)
-            gastos_venta = plusvalia + inmobiliaria
-
-        # === VALOR DE TRANSMISIÓN ===
-        valor_transmision = float(precio_venta or 0) - float(gastos_venta or 0)
-
-        # === BENEFICIO REAL ===
-        beneficio_base = valor_transmision - valor_adquisicion
-
-        # === GESTIÓN COMERCIAL Y ADMINISTRACIÓN ===
-        gestion_comercial = parse_euro(data.get("gestion_comercial"))
-        if "gestion_comercial" not in data and beneficio_base > 0 and (not proyecto or proyecto.gestion_comercial in (None, 0)):
-            gestion_comercial = beneficio_base * 0.05
-
-        gestion_administracion = parse_euro(data.get("gestion_administracion"))
-        if "gestion_administracion" not in data and beneficio_base > 0 and (not proyecto or proyecto.gestion_administracion in (None, 0)):
-            gestion_administracion = beneficio_base * 0.05
-
-        # === BENEFICIO NETO ===
-        gestion_comercial = float(gestion_comercial or 0)
-        gestion_administracion = float(gestion_administracion or 0)
-
-        beneficio_neto = float(beneficio_base) - gestion_comercial - gestion_administracion
-
-        # === ROI ===
-        roi = (beneficio_neto / valor_adquisicion) * 100 if valor_adquisicion > 0 else 0
-
-        # === VIABILIDAD ===
-        viable = roi >= 15
-
-        # === MÉTRICAS PRO (ANÁLISIS INVERSOR) ===
-
-        # Margen neto sobre precio de venta (%)
-        margen_neto = (beneficio_neto / precio_venta) * 100 if precio_venta > 0 else 0
-
-        # Colchón de seguridad (%)
-        # Cuánto puede bajar el precio de venta antes de perder beneficio
-        colchon_seguridad = margen_neto
-
-        # Ratio € ganado por € invertido
-        # Ej: 0,15 € por cada € invertido
-        ratio_euro = (beneficio_neto / valor_adquisicion) if valor_adquisicion > 0 else 0
-
-        # Precio mínimo de venta para cumplir ROI mínimo del 15 %
-        # Beneficio mínimo exigido = 15 % del valor de adquisición
-        beneficio_minimo = valor_adquisicion * 0.15
-
-        # Precio mínimo de venta = adquisición + gastos de venta + beneficio mínimo
-        precio_minimo_venta = valor_adquisicion + gastos_venta + beneficio_minimo
-
-        resultado = {
-            "valor_adquisicion": round(valor_adquisicion, 2),
-            "precio_venta": round(precio_venta, 2),
-            "beneficio_neto": round(beneficio_neto, 2),
-            "roi": round(roi, 2),
-            "viable": viable,
-
-            # Métricas inversor
-            "margen_neto": round(margen_neto, 2),
-            "colchon_seguridad": round(colchon_seguridad, 2),
-            "ratio_euro": round(ratio_euro, 3),
-            "precio_minimo_venta": round(precio_minimo_venta, 2),
-        }
-
-        # === CONSOLIDACIÓN MÉTRICAS INVERSOR (OPCIÓN 3) ===
-        resultado["metricas_inversor"] = {
-            "ratio_euro": round(ratio_euro, 3),
-            "precio_minimo_venta": round(precio_minimo_venta, 2),
-            "decision": "VIABLE" if viable else "NO VIABLE",
-        }
-
-        # === GUARDAR / ACTUALIZAR PROYECTO (CLAVE = NOMBRE) ===
-        if nombre_proyecto:
-            estado_post = data.get("estado", "ESTUDIO")
-            meses_val = int(data.get("meses")) if data.get("meses") else None
-            if proyecto:
-                # === ACTUALIZAR PROYECTO EXISTENTE (SIN PÉRDIDA DE DATOS) ===
-                # 2) Persistencia pasiva real: solo asignar si campo en POST (aunque vacío)
-                if "meses" in data:
-                    proyecto.meses = meses_val
-                if "otros_gastos_compra" in data:
-                    proyecto.otros_gastos_compra = otros_gastos_compra
-                if "reforma" in data:
-                    proyecto.reforma = reforma
-                if "limpieza_inicial" in data:
-                    proyecto.limpieza_inicial = limpieza_inicial
-                if "mobiliario" in data:
-                    proyecto.mobiliario = mobiliario
-                if "otros_puesta_marcha" in data:
-                    proyecto.otros_puesta_marcha = otros_puesta_marcha
-                if "comunidad" in data:
-                    proyecto.comunidad = comunidad
-                if "ibi" in data:
-                    proyecto.ibi = ibi
-                if "seguros" in data:
-                    proyecto.seguros = seguros
-                if "suministros" in data:
-                    proyecto.suministros = suministros
-                if "limpieza_periodica" in data:
-                    proyecto.limpieza_periodica = limpieza_periodica
-                if "ocupas" in data:
-                    proyecto.ocupas = ocupas
-                # 1) Blindaje por fase (estudio vs operación)
-                if estado_post.lower() != "estudio":
-                    if "plusvalia" in data:
-                        proyecto.plusvalia = plusvalia
-                    if "inmobiliaria" in data:
-                        proyecto.inmobiliaria = inmobiliaria
-                    # Obra
-                    if "obra_demoliciones" in data:
-                        proyecto.obra_demoliciones = obra_demoliciones
-                    if "obra_albanileria" in data:
-                        proyecto.obra_albanileria = obra_albanileria
-                    if "obra_fontaneria" in data:
-                        proyecto.obra_fontaneria = obra_fontaneria
-                    if "obra_electricidad" in data:
-                        proyecto.obra_electricidad = obra_electricidad
-                    if "obra_carpinteria_interior" in data:
-                        proyecto.obra_carpinteria_interior = obra_carpinteria_interior
-                    if "obra_carpinteria_exterior" in data:
-                        proyecto.obra_carpinteria_exterior = obra_carpinteria_exterior
-                    if "obra_cocina" in data:
-                        proyecto.obra_cocina = obra_cocina
-                    if "obra_banos" in data:
-                        proyecto.obra_banos = obra_banos
-                    if "obra_pintura" in data:
-                        proyecto.obra_pintura = obra_pintura
-                    if "obra_otros" in data:
-                        proyecto.obra_otros = obra_otros
-                    # Seguridad
-                    if "cerrajero" in data:
-                        proyecto.cerrajero = cerrajero
-                    if "alarma" in data:
-                        proyecto.alarma = alarma
-                # NO modificar estos campos en estudio (ni poner a 0)
-                if "val_idealista" in data:
-                    proyecto.val_idealista = val_idealista
-                if "val_fotocasa" in data:
-                    proyecto.val_fotocasa = val_fotocasa
-                if "val_registradores" in data:
-                    proyecto.val_registradores = val_registradores
-                if "val_casafari" in data:
-                    proyecto.val_casafari = val_casafari
-                if "val_tasacion" in data:
-                    proyecto.val_tasacion = val_tasacion
-
-                proyecto.precio_propiedad = precio_escritura
-                proyecto.precio_compra_inmueble = valor_adquisicion
-                proyecto.precio_venta_estimado = precio_venta
-                # Blindaje de guardado solo si el campo viene en POST
-                if "notaria" in data:
-                    proyecto.notaria = notaria
-                if "registro" in data:
-                    proyecto.registro = registro
-                if "itp" in data:
-                    proyecto.itp = itp
-
-                proyecto.media_valoraciones = media_valoraciones
-                proyecto.gestion_comercial = gestion_comercial
-                proyecto.gestion_administracion = gestion_administracion
-                proyecto.beneficio_neto = beneficio_neto
-                proyecto.roi = roi
-                proyecto.estado = estado_post
-
-                if not solo_calculo:
-                    proyecto.save()
-            else:
-                # Crear nuevo proyecto (no blindamos en alta)
-                proyecto = Proyecto.objects.create(
-                    nombre=nombre_proyecto,
-                    precio_propiedad=precio_escritura,
-                    precio_compra_inmueble=valor_adquisicion,
-                    precio_venta_estimado=precio_venta,
-                    notaria=notaria,
-                    registro=registro,
-                    itp=itp,
-                    beneficio_neto=beneficio_neto,
-                    roi=roi,
-                    val_idealista=val_idealista,
-                    val_fotocasa=val_fotocasa,
-                    val_registradores=val_registradores,
-                    val_casafari=val_casafari,
-                    val_tasacion=val_tasacion,
-                    otros_gastos_compra=otros_gastos_compra,
-                    reforma=reforma,
-                    limpieza_inicial=limpieza_inicial,
-                    mobiliario=mobiliario,
-                    otros_puesta_marcha=otros_puesta_marcha,
-                    comunidad=comunidad,
-                    ibi=ibi,
-                    seguros=seguros,
-                    suministros=suministros,
-                    limpieza_periodica=limpieza_periodica,
-                    ocupas=ocupas,
-                    plusvalia=plusvalia,
-                    inmobiliaria=inmobiliaria,
-                    estado=estado_post,
-                    media_valoraciones=media_valoraciones,
-                    gestion_comercial=gestion_comercial,
-                    gestion_administracion=gestion_administracion,
-                    meses=meses_val,
-                    obra_demoliciones=obra_demoliciones,
-                    obra_albanileria=obra_albanileria,
-                    obra_fontaneria=obra_fontaneria,
-                    obra_electricidad=obra_electricidad,
-                    obra_carpinteria_interior=obra_carpinteria_interior,
-                    obra_carpinteria_exterior=obra_carpinteria_exterior,
-                    obra_cocina=obra_cocina,
-                    obra_banos=obra_banos,
-                    obra_pintura=obra_pintura,
-                    obra_otros=obra_otros,
-                    cerrajero=cerrajero,
-                    alarma=alarma,
-                )
-
-    # No refrescar desde BD tras POST
-
-        editable = True
-        if proyecto and proyecto.estado and proyecto.estado.lower() in ["cerrado", "cerrado_positivo"]:
-            editable = False
-
-
-    # === CONSOLIDAR CÁLCULO DE FASE (SOLO AQUÍ) ===
-    fase = "estudio"
-    if proyecto and proyecto.estado:
-        fase = proyecto.estado.lower()
-    elif request.POST.get("estado"):
-        fase = request.POST.get("estado").lower()
+    if proyecto and proyecto.estado and proyecto.estado.lower() in ["cerrado", "cerrado_positivo"]:
+        editable = False
 
     return render(
         request,
         "core/simulador.html",
         {
-            "proyectos": proyectos,
-            "resultado": resultado,
             "proyecto": proyecto,
+            "resultado": resultado,
             "editable": editable,
-            "fase": fase,
-        }
+        },
     )
 
 
@@ -602,7 +349,7 @@ def cambiar_estado_proyecto(request, proyecto_id):
     proyecto.estado = estado_nuevo
     proyecto.save(update_fields=["estado"])
 
-    return redirect("lista_proyectos")
+    return redirect("core:lista_proyectos")
 
 
 
@@ -811,6 +558,29 @@ from django.views.decorators.http import require_POST
 # === CONVERTIR SIMULACIÓN EN PROYECTO (NUEVA VERSIÓN CORRECTA) ===
 from django.views.decorators.http import require_POST
 
+
+# === GUARDAR SIMULACIÓN DESDE SIMULADOR BÁSICO (NO proyecto) ===
+@require_POST
+def guardar_simulacion(request):
+    """
+    Guarda una simulación básica desde el simulador básico
+    SIN convertirla en proyecto.
+    """
+    Simulacion.objects.create(
+        nombre=request.POST.get("direccion") or None,
+        direccion=request.POST.get("direccion"),
+        ref_catastral=request.POST.get("ref_catastral"),
+        precio_compra=parse_euro(request.POST.get("precio_compra")),
+        precio_venta_estimado=parse_euro(request.POST.get("precio_venta")),
+        beneficio=parse_euro(request.POST.get("beneficio")),
+        roi=parse_euro(request.POST.get("roi")),
+        viable=True,
+        convertida=False,
+    )
+
+    return redirect("core:lista_proyectos")
+
+
 @require_POST
 def convertir_simulacion_a_proyecto(request, simulacion_id):
     """
@@ -827,7 +597,7 @@ def convertir_simulacion_a_proyecto(request, simulacion_id):
 
     if not simulacion:
         # No existe o ya convertida: volvemos a proyectos
-        return redirect("lista_proyectos")
+        return redirect("core:lista_proyectos")
 
     # 1) Determinar dirección del inmueble
     direccion = (
@@ -857,7 +627,7 @@ def convertir_simulacion_a_proyecto(request, simulacion_id):
     simulacion.save(update_fields=["convertida"])
 
     # 4) Redirigir al formulario de proyecto (simulador completo)
-    return redirect(f"/simulador/?proyecto={proyecto.nombre}")
+    return redirect("core:simulador", proyecto_id=proyecto.id)
 
 
 
@@ -948,50 +718,30 @@ from django.views.decorators.http import require_POST
 @require_POST
 def borrar_simulacion(request, simulacion_id):
     """
-    Borrado profesional:
+    Borrado estándar:
     - Elimina la simulación
-    - No redirige
-    - Devuelve 204 para uso con fetch/AJAX
+    - Redirige a la lista de proyectos
     """
     Simulacion.objects.filter(id=simulacion_id).delete()
-    return HttpResponse(status=204)
+    return redirect("core:lista_proyectos")
 
 
-# === Consulta Catastro por Referencia Catastral (GET-compatible endpoint) ===
 @require_GET
-def obtener_datos_catastro_get(request):
+def catastro_obtener(request):
     ref = request.GET.get("ref")
 
     if not ref:
-        return JsonResponse({"error": "Referencia catastral vacía"}, status=400)
+        return JsonResponse({"ok": False, "error": "Referencia catastral vacía"}, status=400)
 
     datos = consultar_catastro_por_rc(ref)
 
-    if not datos:
-        return JsonResponse({"error": "No se pudo consultar Catastro"}, status=404)
+    if not datos or not datos.get("direccion"):
+        return JsonResponse({"ok": False, "error": "No se pudo consultar el Catastro"}, status=404)
 
-    # 🔒 Guardado temporal en sesión (PASO CLAVE)
-    request.session["catastro_tmp"] = {
+    return JsonResponse({
+        "ok": True,
         "direccion": datos.get("direccion"),
         "lat": datos.get("lat"),
         "lon": datos.get("lon"),
-    }
-
-    return JsonResponse(datos)
-
-# === Consulta Catastro por Referencia Catastral (API AJAX) ===
-from django.views.decorators.http import require_POST
-
-@require_POST
-def obtener_datos_catastro(request):
-    ref = request.POST.get("ref_catastral")
-
-    if not ref:
-        return JsonResponse({"error": "Referencia catastral vacía"}, status=400)
-
-    datos = consultar_catastro_por_rc(ref)
-
-    if not datos:
-        return JsonResponse({"error": "No se pudo consultar Catastro"}, status=404)
-
-    return JsonResponse(datos)
+        "ref": ref,
+    })

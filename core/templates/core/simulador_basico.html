@@ -115,23 +115,23 @@
 
                     <h5 class="card-title mb-3">Acciones</h5>
 
-                    <form method="post" action="{% url 'core:guardar_simulacion' %}" class="mb-2">
+                    <form method="post" action="{% url 'core:guardar_simulacion' %}">
                         {% csrf_token %}
                         <input type="hidden" name="direccion" value="{{ direccion }}">
                         <input type="hidden" name="ref_catastral" value="{{ ref_catastral }}">
                         <input type="hidden" name="precio_compra" value="{{ precio_compra }}">
                         <input type="hidden" name="precio_venta" value="{{ precio_venta }}">
-                        <button class="btn btn-outline-primary w-100">
+                        <input type="hidden" name="beneficio" value="{{ resultado.beneficio }}">
+                        <input type="hidden" name="roi" value="{{ resultado.roi }}">
+                        <button type="submit" class="btn btn-outline-primary w-100 mb-2">
                             Guardar simulación
                         </button>
                     </form>
 
                     {% if simulacion %}
-                    <form method="post"
-                          action="{% url 'core:convertir_simulacion' simulacion.id %}"
-                          class="mb-2">
+                    <form method="post" action="{% url 'core:convertir_simulacion_a_proyecto' simulacion.id %}">
                         {% csrf_token %}
-                        <button class="btn btn-success w-100">
+                        <button type="submit" class="btn btn-success w-100 mb-2">
                             Convertir a proyecto
                         </button>
                     </form>
