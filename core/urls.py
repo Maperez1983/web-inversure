@@ -3,8 +3,13 @@ from . import views
 app_name = "core"
 urlpatterns = [
     path("", views.home, name="home"),
-    path("simulador/", views.simulador, name="simulador"),
+  path("simulador/<int:proyecto_id>/", views.simulador, name="simulador"),
     path("simulador-basico/", views.simulador_basico, name="simulador_basico"),
+    path(
+        "simulaciones/guardar/",
+        views.guardar_simulacion,
+        name="guardar_simulacion",
+    ),
     path(
         "simulaciones/borrar/<int:simulacion_id>/",
         views.borrar_simulacion,
@@ -13,7 +18,7 @@ urlpatterns = [
     path(
         "simulaciones/<int:simulacion_id>/convertir/",
         views.convertir_simulacion_a_proyecto,
-        name="convertir_simulacion",
+        name="convertir_simulacion_a_proyecto",
     ),
     path("proyectos/", views.lista_proyectos, name="lista_proyectos"),
     path(
@@ -30,14 +35,4 @@ urlpatterns = [
         views.cambiar_estado_proyecto,
         name="cambiar_estado_proyecto",
     ),
-    path(
-        "catastro/obtener/",
-        views.obtener_datos_catastro_get,
-        name="obtener_datos_catastro_get",
-    ),
-    path(
-        "catastro/obtener-post/",
-        views.obtener_datos_catastro,
-        name="obtener_datos_catastro_post",
-    ),
-]
+   
