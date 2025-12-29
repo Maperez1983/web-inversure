@@ -285,7 +285,7 @@ def simulador(request, proyecto_id=None):
                 return redirect("core:simulador", proyecto_id=proyecto.id)
 
             if accion == "convertir":
-                proyecto.estado = "operacion"
+                proyecto.estado = "estudio"
                 proyecto.save(update_fields=["estado"])
                 return redirect("core:lista_proyectos")
 
@@ -528,6 +528,27 @@ def lista_proyectos(request):
             "estado_actual": estado,
         },
     )
+
+# =========================
+# BORRAR PROYECTO DE FORMA SEGURA
+# =========================
+from django.views.decorators.http import require_POST
+from django.shortcuts import get_object_or_404, redirect
+
+@require_POST
+def borrar_proyecto(request, proyecto_id):
+    """
+    Borra un proyecto SOLO si está en fase de estudio.
+    No se permite borrar proyectos en operación o cerrados.
+    """
+    proyecto = get_object_or_404(Proyecto, id=proyecto_id)
+
+    # Regla de negocio Inversure
+    if proyecto.estado in ["operacion", "cerrado"]:
+        return redirect("core:lista_proyectos")
+
+    proyecto.delete()
+    return redirect("core:lista_proyectos")
 
 
 # === Proyecto Detalle View ===
