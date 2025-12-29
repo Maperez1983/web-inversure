@@ -40,6 +40,11 @@ urlpatterns = [
         name="proyecto_detalle",
     ),
     path(
+        "proyectos/<int:proyecto_id>/borrar/",
+        views.borrar_proyecto,
+        name="borrar_proyecto",
+    ),
+    path(
         "proyectos/<int:proyecto_id>/gastos/",
         views.proyecto_gastos,
         name="proyecto_gastos",
@@ -59,9 +64,3 @@ urlpatterns = [
         name="cambiar_estado_proyecto",
     ),
 ]
-from django.shortcuts import redirect
-
-def borrar_analisis_previo(request):
-    if request.method == "POST":
-        request.session.pop("simulacion_actual", None)
-    return redirect("core:simulador_basico")
