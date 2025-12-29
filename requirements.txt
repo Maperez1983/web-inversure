@@ -7,4 +7,4 @@ typing_extensions==4.15.0
 whitenoise==6.11.0
 requests==2.32.3
 weasyprint
-
+matplotlib==3.8.4
