@@ -934,9 +934,9 @@ def generar_pdf_estudio(request, proyecto_id):
     fig1, ax1 = plt.subplots(figsize=(7, 4))
 
     valores_beneficio = [
-        metricas["beneficio_bruto"],
-        metricas["comision_eur"],
-        metricas["beneficio_neto"],
+        float(metricas["beneficio_bruto"]),
+        float(metricas["comision_eur"]),
+        float(metricas["beneficio_neto"]),
     ]
 
     etiquetas_beneficio = [
@@ -987,8 +987,8 @@ def generar_pdf_estudio(request, proyecto_id):
     fig2, ax2 = plt.subplots(figsize=(6, 3.5))
 
     valores_precios = [
-        metricas["inversion_total"],
-        metricas["precio_transmision"],
+        float(metricas["inversion_total"]),
+        float(metricas["precio_transmision"]),
     ]
 
     etiquetas_precios = [
@@ -1057,10 +1057,10 @@ def generar_pdf_estudio(request, proyecto_id):
     fig3, ax3 = plt.subplots(figsize=(7, 3.8))
 
     precios_sens = [
-        metricas["precio_adquisicion"],
-        metricas["precio_objetivo_15"],
-        metricas["precio_objetivo_30000"],
-        metricas["precio_transmision"],
+        float(metricas["precio_adquisicion"]),
+        float(metricas["precio_objetivo_15"]),
+        float(metricas["precio_objetivo_30000"]),
+        float(metricas["precio_transmision"]),
     ]
 
     labels_sens = [
