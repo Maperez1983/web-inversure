@@ -852,6 +852,7 @@ def generar_pdf_estudio(request, proyecto_id):
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    import hashlib
     proyecto = get_object_or_404(Proyecto, id=proyecto_id)
 
     precio_escritura = proyecto.precio_propiedad or Decimal("0")
@@ -905,6 +906,19 @@ def generar_pdf_estudio(request, proyecto_id):
     roi_menos_5 = (beneficio_menos_5 / inversion_total * Decimal("100")) if inversion_total else Decimal("0")
     roi_menos_10 = (beneficio_menos_10 / inversion_total * Decimal("100")) if inversion_total else Decimal("0")
 
+    # =========================
+    # FINGERPRINT Y CACHE DE GRÁFICOS
+    # =========================
+    fingerprint_data = f"{precio_escritura}|{precio_venta}|{beneficio}|{roi}|{comision_pct}"
+    hash_estudio = hashlib.md5(fingerprint_data.encode()).hexdigest()
+
+    cache_dir = Path(settings.BASE_DIR) / "tmp" / "pdf_cache"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+
+    grafico1_path = cache_dir / f"estudio_{proyecto.id}_{hash_estudio}_g1.png"
+    grafico2_path = cache_dir / f"estudio_{proyecto.id}_{hash_estudio}_g2.png"
+    grafico3_path = cache_dir / f"estudio_{proyecto.id}_{hash_estudio}_g3.png"
+
     metricas = {
         "precio_adquisicion": precio_escritura,
         "precio_transmision": precio_venta,
@@ -939,106 +953,108 @@ def generar_pdf_estudio(request, proyecto_id):
     # =================================================
     # GRÁFICO 1: DESGLOSE DEL BENEFICIO (BRUTO / COMISIÓN / NETO) (PROTAGONISTA)
     # =================================================
-    fig1, ax1 = plt.subplots(figsize=(7, 4))
+    if grafico1_path.exists():
+        grafico_beneficio_base64 = base64.b64encode(grafico1_path.read_bytes()).decode("utf-8")
+    else:
+        fig1, ax1 = plt.subplots(figsize=(7, 4))
 
-    valores_beneficio = [
-        float(metricas["beneficio_bruto"]),
-        float(metricas["comision_eur"]),
-        float(metricas["beneficio_neto"]),
-    ]
+        valores_beneficio = [
+            float(metricas["beneficio_bruto"]),
+            float(metricas["comision_eur"]),
+            float(metricas["beneficio_neto"]),
+        ]
 
-    etiquetas_beneficio = [
-        "Beneficio bruto",
-        "Comisión Inversure",
-        "Beneficio neto inversor",
-    ]
+        etiquetas_beneficio = [
+            "Beneficio bruto",
+            "Comisión Inversure",
+            "Beneficio neto inversor",
+        ]
 
-    colores = [COLOR_AZUL, COLOR_DORADO, COLOR_GRIS]
+        colores = [COLOR_AZUL, COLOR_DORADO, COLOR_GRIS]
 
-    barras1 = ax1.bar(
-        etiquetas_beneficio,
-        valores_beneficio,
-        color=colores,
-        width=0.55
-    )
-
-    ax1.set_title("Resultado económico de la operación", fontsize=13, fontweight="bold")
-    ax1.set_ylabel("Euros (€)")
-    ax1.tick_params(axis="x", labelsize=10)
-    ax1.tick_params(axis="y", labelsize=9)
-
-    ax1.spines["top"].set_visible(False)
-    ax1.spines["right"].set_visible(False)
-
-    for barra in barras1:
-        altura = barra.get_height()
-        ax1.text(
-            barra.get_x() + barra.get_width() / 2,
-            altura * 1.02,
-            fmt_eur(Decimal(str(float(altura)))),
-            ha="center",
-            va="bottom",
-            fontsize=10,
-            fontweight="bold"
+        barras1 = ax1.bar(
+            etiquetas_beneficio,
+            valores_beneficio,
+            color=colores,
+            width=0.55
         )
 
-    buffer1 = io.BytesIO()
-    try:
-        plt.tight_layout()
-    except Exception:
-        pass
-    plt.savefig(buffer1, format="png", dpi=160)
-    plt.close(fig1)
+        ax1.set_title("Resultado económico de la operación", fontsize=13, fontweight="bold")
+        ax1.set_ylabel("Euros (€)")
+        ax1.tick_params(axis="x", labelsize=10)
+        ax1.tick_params(axis="y", labelsize=9)
 
-    grafico_beneficio_base64 = base64.b64encode(buffer1.getvalue()).decode("utf-8")
+        ax1.spines["top"].set_visible(False)
+        ax1.spines["right"].set_visible(False)
+
+        for barra in barras1:
+            altura = barra.get_height()
+            ax1.text(
+                barra.get_x() + barra.get_width() / 2,
+                altura * 1.02,
+                fmt_eur(Decimal(str(float(altura)))),
+                ha="center",
+                va="bottom",
+                fontsize=10,
+                fontweight="bold"
+            )
+
+        try:
+            plt.tight_layout()
+        except Exception:
+            pass
+        plt.savefig(grafico1_path, format="png", dpi=160)
+        plt.close(fig1)
+        grafico_beneficio_base64 = base64.b64encode(grafico1_path.read_bytes()).decode("utf-8")
 
     # =================================================
     # GRÁFICO 2: ADQUISICIÓN VS TRANSMISIÓN (secundario pero claro)
     # =================================================
-    fig2, ax2 = plt.subplots(figsize=(6, 3.5))
+    if grafico2_path.exists():
+        grafico_precios_base64 = base64.b64encode(grafico2_path.read_bytes()).decode("utf-8")
+    else:
+        fig2, ax2 = plt.subplots(figsize=(6, 3.5))
 
-    valores_precios = [
-        float(metricas["inversion_total"]),
-        float(metricas["precio_transmision"]),
-    ]
+        valores_precios = [
+            float(metricas["inversion_total"]),
+            float(metricas["precio_transmision"]),
+        ]
 
-    etiquetas_precios = [
-        "Inversión total",
-        "Precio de venta",
-    ]
+        etiquetas_precios = [
+            "Inversión total",
+            "Precio de venta",
+        ]
 
-    barras2 = ax2.bar(
-        etiquetas_precios,
-        valores_precios,
-        color=[COLOR_AZUL, COLOR_DORADO],
-        width=0.5
-    )
-
-    ax2.set_title("Comparativa adquisición / venta", fontsize=12, fontweight="bold")
-    ax2.set_ylabel("Euros (€)")
-    ax2.spines["top"].set_visible(False)
-    ax2.spines["right"].set_visible(False)
-
-    for barra in barras2:
-        altura = barra.get_height()
-        ax2.text(
-            barra.get_x() + barra.get_width() / 2,
-            altura * 1.01,
-            fmt_eur(Decimal(str(float(altura)))),
-            ha="center",
-            va="bottom",
-            fontsize=9
+        barras2 = ax2.bar(
+            etiquetas_precios,
+            valores_precios,
+            color=[COLOR_AZUL, COLOR_DORADO],
+            width=0.5
         )
 
-    buffer2 = io.BytesIO()
-    try:
-        plt.tight_layout()
-    except Exception:
-        pass
-    plt.savefig(buffer2, format="png", dpi=150)
-    plt.close(fig2)
+        ax2.set_title("Comparativa adquisición / venta", fontsize=12, fontweight="bold")
+        ax2.set_ylabel("Euros (€)")
+        ax2.spines["top"].set_visible(False)
+        ax2.spines["right"].set_visible(False)
 
-    grafico_precios_base64 = base64.b64encode(buffer2.getvalue()).decode("utf-8")
+        for barra in barras2:
+            altura = barra.get_height()
+            ax2.text(
+                barra.get_x() + barra.get_width() / 2,
+                altura * 1.01,
+                fmt_eur(Decimal(str(float(altura)))),
+                ha="center",
+                va="bottom",
+                fontsize=9
+            )
+
+        try:
+            plt.tight_layout()
+        except Exception:
+            pass
+        plt.savefig(grafico2_path, format="png", dpi=150)
+        plt.close(fig2)
+        grafico_precios_base64 = base64.b64encode(grafico2_path.read_bytes()).decode("utf-8")
 
     # ============================
     # OBJETIVOS DE RENTABILIDAD (INVERSOR)
@@ -1068,57 +1084,58 @@ def generar_pdf_estudio(request, proyecto_id):
     # =================================================
     # GRÁFICO 3: SENSIBILIDAD DEL PRECIO DE VENTA (DECISIÓN)
     # =================================================
-    fig3, ax3 = plt.subplots(figsize=(7, 3.8))
+    if grafico3_path.exists():
+        grafico_sensibilidad_base64 = base64.b64encode(grafico3_path.read_bytes()).decode("utf-8")
+    else:
+        fig3, ax3 = plt.subplots(figsize=(7, 3.8))
 
-    precios_sens = [
-        float(metricas["precio_adquisicion"]),
-        float(metricas["precio_objetivo_15"]),
-        float(metricas["precio_objetivo_30000"]),
-        float(metricas["precio_transmision"]),
-    ]
+        precios_sens = [
+            float(metricas["precio_adquisicion"]),
+            float(metricas["precio_objetivo_15"]),
+            float(metricas["precio_objetivo_30000"]),
+            float(metricas["precio_transmision"]),
+        ]
 
-    labels_sens = [
-        "Compra",
-        "Objetivo 15 %",
-        "Objetivo +30.000 €",
-        "Venta estimada",
-    ]
+        labels_sens = [
+            "Compra",
+            "Objetivo 15 %",
+            "Objetivo +30.000 €",
+            "Venta estimada",
+        ]
 
-    x_pos = list(range(len(labels_sens)))
+        x_pos = list(range(len(labels_sens)))
 
-    ax3.plot(
-        x_pos,
-        precios_sens,
-        marker="o",
-        linewidth=2.5,
-        color=COLOR_AZUL
-    )
-    ax3.set_xticks(x_pos)
-    ax3.set_xticklabels(labels_sens)
-
-    for i, y in enumerate(precios_sens):
-        ax3.text(
-            i,
-            y * 1.01,
-            fmt_eur(Decimal(str(float(y)))),
-            ha="center",
-            fontsize=9,
-            fontweight="bold"
+        ax3.plot(
+            x_pos,
+            precios_sens,
+            marker="o",
+            linewidth=2.5,
+            color=COLOR_AZUL
         )
+        ax3.set_xticks(x_pos)
+        ax3.set_xticklabels(labels_sens)
 
-    ax3.set_title("Sensibilidad del precio de venta", fontsize=13, fontweight="bold")
-    ax3.set_ylabel("Precio (€)")
-    ax3.grid(True, linestyle="--", alpha=0.3)
+        for i, y in enumerate(precios_sens):
+            ax3.text(
+                i,
+                y * 1.01,
+                fmt_eur(Decimal(str(float(y)))),
+                ha="center",
+                fontsize=9,
+                fontweight="bold"
+            )
 
-    buffer3 = io.BytesIO()
-    try:
-        plt.tight_layout()
-    except Exception:
-        pass
-    plt.savefig(buffer3, format="png", dpi=160)
-    plt.close(fig3)
+        ax3.set_title("Sensibilidad del precio de venta", fontsize=13, fontweight="bold")
+        ax3.set_ylabel("Precio (€)")
+        ax3.grid(True, linestyle="--", alpha=0.3)
 
-    grafico_sensibilidad_base64 = base64.b64encode(buffer3.getvalue()).decode("utf-8")
+        try:
+            plt.tight_layout()
+        except Exception:
+            pass
+        plt.savefig(grafico3_path, format="png", dpi=160)
+        plt.close(fig3)
+        grafico_sensibilidad_base64 = base64.b64encode(grafico3_path.read_bytes()).decode("utf-8")
 
     # ============================
     # LOGO CORPORATIVO (WeasyPrint)
