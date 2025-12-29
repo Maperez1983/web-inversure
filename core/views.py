@@ -1248,14 +1248,38 @@ def proyecto_detalle(request, proyecto_id):
         total=Sum("importe")
     )["total"] or 0
 
-    context = {
-        "proyecto": proyecto,
-        "gastos": gastos,
-        "total_gastos": total_gastos,
-    }
-
     return render(
         request,
         "core/proyecto_detalle.html",
-        context,
+        {
+            "proyecto": proyecto,
+            "gastos": gastos,
+            "total_gastos": total_gastos,
+        },
+    )
+
+# === PROYECTO GASTOS VIEW ===
+from django.views.decorators.http import require_GET
+from django.db.models import Sum
+
+@require_GET
+def proyecto_gastos(request, proyecto_id):
+    proyecto = get_object_or_404(Proyecto, id=proyecto_id)
+
+    gastos = GastoProyecto.objects.filter(
+        proyecto=proyecto
+    ).order_by("-fecha")
+
+    total_gastos = gastos.aggregate(
+        total=Sum("importe")
+    )["total"] or 0
+
+    return render(
+        request,
+        "core/proyecto_gastos.html",
+        {
+            "proyecto": proyecto,
+            "gastos": gastos,
+            "total_gastos": total_gastos,
+        },
     )
