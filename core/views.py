@@ -942,9 +942,9 @@ def generar_pdf_estudio(request, proyecto_id):
     fig1, ax1 = plt.subplots(figsize=(7, 4))
 
     valores_beneficio = [
-        f(metricas["beneficio_bruto"]),
-        f(metricas["comision_eur"]),
-        f(metricas["beneficio_neto"]),
+        float(metricas["beneficio_bruto"]),
+        float(metricas["comision_eur"]),
+        float(metricas["beneficio_neto"]),
     ]
 
     etiquetas_beneficio = [
@@ -975,7 +975,7 @@ def generar_pdf_estudio(request, proyecto_id):
         ax1.text(
             barra.get_x() + barra.get_width() / 2,
             altura * 1.02,
-            fmt_eur(Decimal(str(altura))),
+            fmt_eur(Decimal(str(float(altura)))),
             ha="center",
             va="bottom",
             fontsize=10,
@@ -998,8 +998,8 @@ def generar_pdf_estudio(request, proyecto_id):
     fig2, ax2 = plt.subplots(figsize=(6, 3.5))
 
     valores_precios = [
-        f(metricas["inversion_total"]),
-        f(metricas["precio_transmision"]),
+        float(metricas["inversion_total"]),
+        float(metricas["precio_transmision"]),
     ]
 
     etiquetas_precios = [
@@ -1024,7 +1024,7 @@ def generar_pdf_estudio(request, proyecto_id):
         ax2.text(
             barra.get_x() + barra.get_width() / 2,
             altura * 1.01,
-            fmt_eur(Decimal(str(altura))),
+            fmt_eur(Decimal(str(float(altura)))),
             ha="center",
             va="bottom",
             fontsize=9
@@ -1071,10 +1071,10 @@ def generar_pdf_estudio(request, proyecto_id):
     fig3, ax3 = plt.subplots(figsize=(7, 3.8))
 
     precios_sens = [
-        f(metricas["precio_adquisicion"]),
-        f(metricas["precio_objetivo_15"]),
-        f(metricas["precio_objetivo_30000"]),
-        f(metricas["precio_transmision"]),
+        float(metricas["precio_adquisicion"]),
+        float(metricas["precio_objetivo_15"]),
+        float(metricas["precio_objetivo_30000"]),
+        float(metricas["precio_transmision"]),
     ]
 
     labels_sens = [
@@ -1100,7 +1100,7 @@ def generar_pdf_estudio(request, proyecto_id):
         ax3.text(
             i,
             y * 1.01,
-            fmt_eur(y),
+            fmt_eur(Decimal(str(float(y)))),
             ha="center",
             fontsize=9,
             fontweight="bold"
