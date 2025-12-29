@@ -1,94 +1,43 @@
 {% extends "core/base.html" %}
 {% block content %}
 
-<!-- PROJECT HEADER -->
-<section class="project-header mb-4 p-4 rounded" style="background:#122135;color:#fff;">
-  <div class="d-flex justify-content-between align-items-start">
-    <div>
-      <h1 class="mb-1">{{ proyecto.nombre }}</h1>
-      <div class="opacity-75">{{ proyecto.direccion }}</div>
-    </div>
-    <span class="badge px-3 py-2"
-          style="background:#d7b04c;color:#122135;font-weight:600;">
-      {{ proyecto.estado }}
-    </span>
+<div class="container py-4">
+
+  <!-- CABECERA DEL PROYECTO -->
+  <div class="mb-4">
+    <h2>Proyecto</h2>
+    <p class="text-muted">
+      Esta es la ficha principal del proyecto. Aquí se gestionará toda la operación.
+    </p>
   </div>
-</section>
 
-<!-- KPI SUMMARY -->
-<section class="project-summary mb-4">
-  <div class="row g-3">
-
-    <div class="col-md-3">
-      <div class="card h-100 shadow-sm">
-        <div class="card-body">
-          <div class="text-muted small">Inversión prevista</div>
-          <div class="fs-4 fw-bold">{{ inversion }} €</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="col-md-3">
-      <div class="card h-100 shadow-sm">
-        <div class="card-body">
-          <div class="text-muted small">Gastos reales</div>
-          <div class="fs-4 fw-bold">{{ total_gastos }} €</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="col-md-3">
-      <div class="card h-100 shadow-sm">
-        <div class="card-body">
-          <div class="text-muted small">Capital comprometido</div>
-          <div class="fs-4 fw-bold">{{ capital }} €</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="col-md-3">
-      <div class="card h-100 shadow-sm border-success">
-        <div class="card-body">
-          <div class="text-muted small">Resultado estimado</div>
-          <div class="fs-4 fw-bold text-success">{{ resultado }} €</div>
-        </div>
-      </div>
-    </div>
-
+  <!-- BLOQUE ESTADO -->
+  <div class="card mb-4 p-3">
+    <h5>Estado del proyecto</h5>
+    <p class="mb-0">
+      Estado actual: <strong>{{ proyecto.estado }}</strong>
+    </p>
   </div>
-</section>
 
-<!-- ACTIONS -->
-<section class="project-actions mb-4">
-  <div class="d-flex gap-2">
-    <a href="{% url 'core:proyecto_gastos' proyecto.id %}" class="btn btn-primary">
-      Gastos
-    </a>
-    <a href="{% url 'core:participacion_create' proyecto.id %}" class="btn btn-outline-primary">
-      Inversores
-    </a>
-    <a href="{% url 'core:generar_pdf_estudio' proyecto.id %}" class="btn btn-outline-secondary">
-      Estudio (PDF)
-    </a>
+  <!-- BLOQUE ECONÓMICO -->
+  <div class="card mb-4 p-3">
+    <h5>Resumen económico (estimado)</h5>
+    <ul class="mb-0">
+      <li>Precio de compra estimado: {{ proyecto.precio_compra_estimado|default:"--" }} €</li>
+      <li>Precio de venta estimado: {{ proyecto.precio_venta_estimado|default:"--" }} €</li>
+    </ul>
   </div>
-</section>
 
-<!-- METADATA -->
-<section class="project-info">
-  <div class="card">
-    <div class="card-body">
-      <dl class="row mb-0">
-        <dt class="col-sm-4">ID del proyecto</dt>
-        <dd class="col-sm-8">{{ proyecto.id }}</dd>
-
-        <dt class="col-sm-4">Fecha de creación</dt>
-        <dd class="col-sm-8">{{ proyecto.fecha_creacion|default:"-" }}</dd>
-
-        <dt class="col-sm-4">Última actualización</dt>
-        <dd class="col-sm-8">{{ proyecto.fecha_actualizacion|default:"-" }}</dd>
-      </dl>
-    </div>
+  <!-- BLOQUE INMUEBLE -->
+  <div class="card p-3">
+    <h5>Datos del inmueble</h5>
+    <ul class="mb-0">
+      <li>Dirección: {{ proyecto.direccion|default:"--" }}</li>
+      <li>Referencia catastral: {{ proyecto.referencia_catastral|default:"--" }}</li>
+      <li>Municipio: {{ proyecto.municipio|default:"--" }}</li>
+    </ul>
   </div>
-</section>
+
+</div>
 
 {% endblock %}

@@ -721,7 +721,7 @@ def guardar_simulacion(request):
         convertida=False,
     )
 
-    return redirect("core:lista_proyectos")
+    return redirect("core:lista_estudio")
 
 
 
@@ -854,15 +854,18 @@ def simulador_basico(request):
 from django.http import HttpResponse
 from django.views.decorators.http import require_POST
 
+
+
+# Nueva función para borrar análisis previo (NO borra nada en BD)
 @require_POST
-def borrar_simulacion(request, simulacion_id):
+def borrar_analisis_previo(request):
     """
-    Borrado estándar:
-    - Elimina la simulación
-    - Redirige a la lista de proyectos
+    Borrado del análisis previo:
+    - No guarda nada
+    - No borra simulaciones existentes
+    - Vuelve al simulador básico limpio
     """
-    Simulacion.objects.filter(id=simulacion_id).delete()
-    return redirect("core:lista_proyectos")
+    return redirect("core:simulador_basico")
 
 
 @require_GET
