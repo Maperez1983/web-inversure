@@ -30,10 +30,18 @@
                     En estudio
                   </span>
                 </div>
-                <div class="ms-3">
+                <div class="ms-3 d-flex gap-2">
                   <a href="{% url 'core:simulador' estudio.id %}" class="btn btn-inversure-outline px-4">
                     Abrir estudio
                   </a>
+
+                  <form method="post" action="{% url 'core:borrar_estudio' estudio.id %}"
+                        onsubmit="return confirm('¿Seguro que quieres borrar este estudio?');">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-outline-danger px-4">
+                      Borrar
+                    </button>
+                  </form>
                 </div>
               </div>
             {% endfor %}
