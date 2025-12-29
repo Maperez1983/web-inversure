@@ -11,6 +11,7 @@ from django.shortcuts import render, redirect
 from django.views.decorators.csrf import csrf_exempt
 from decimal import Decimal
 from .models import Proyecto, Cliente, Participacion, Simulacion
+from .models import GastoProyecto
 
 try:
     import pandas as pd
@@ -1227,3 +1228,34 @@ def aprobar_proyecto(request, proyecto_id):
     proyecto.save(update_fields=["pdf_aprobado", "aprobado", "fecha_aprobacion"])
 
     return redirect("core:lista_estudios")
+
+
+# === NUEVAS VISTAS DE GASTOS Y DETALLE DE PROYECTO ===
+
+from django.db.models import Sum
+from django.views.decorators.http import require_GET
+
+@require_GET
+def proyecto_detalle(request, proyecto_id):
+    proyecto = get_object_or_404(Proyecto, id=proyecto_id)
+
+    # Gastos asociados al proyecto
+    gastos = GastoProyecto.objects.filter(
+        proyecto=proyecto
+    ).order_by("-fecha")
+
+    total_gastos = gastos.aggregate(
+        total=Sum("importe")
+    )["total"] or 0
+
+    context = {
+        "proyecto": proyecto,
+        "gastos": gastos,
+        "total_gastos": total_gastos,
+    }
+
+    return render(
+        request,
+        "core/proyecto_detalle.html",
+        context,
+    )
