@@ -1,3 +1,11 @@
+def f(x):
+    """Cast to float, handling Decimal and None."""
+    if x is None:
+        return 0.0
+    try:
+        return float(x)
+    except Exception:
+        return 0.0
 
 from django.shortcuts import render, redirect
 from django.views.decorators.csrf import csrf_exempt
@@ -934,9 +942,9 @@ def generar_pdf_estudio(request, proyecto_id):
     fig1, ax1 = plt.subplots(figsize=(7, 4))
 
     valores_beneficio = [
-        float(metricas["beneficio_bruto"]),
-        float(metricas["comision_eur"]),
-        float(metricas["beneficio_neto"]),
+        f(metricas["beneficio_bruto"]),
+        f(metricas["comision_eur"]),
+        f(metricas["beneficio_neto"]),
     ]
 
     etiquetas_beneficio = [
@@ -975,7 +983,10 @@ def generar_pdf_estudio(request, proyecto_id):
         )
 
     buffer1 = io.BytesIO()
-    plt.tight_layout()
+    try:
+        plt.tight_layout()
+    except Exception:
+        pass
     plt.savefig(buffer1, format="png", dpi=160)
     plt.close(fig1)
 
@@ -987,8 +998,8 @@ def generar_pdf_estudio(request, proyecto_id):
     fig2, ax2 = plt.subplots(figsize=(6, 3.5))
 
     valores_precios = [
-        float(metricas["inversion_total"]),
-        float(metricas["precio_transmision"]),
+        f(metricas["inversion_total"]),
+        f(metricas["precio_transmision"]),
     ]
 
     etiquetas_precios = [
@@ -1020,7 +1031,10 @@ def generar_pdf_estudio(request, proyecto_id):
         )
 
     buffer2 = io.BytesIO()
-    plt.tight_layout()
+    try:
+        plt.tight_layout()
+    except Exception:
+        pass
     plt.savefig(buffer2, format="png", dpi=150)
     plt.close(fig2)
 
@@ -1057,10 +1071,10 @@ def generar_pdf_estudio(request, proyecto_id):
     fig3, ax3 = plt.subplots(figsize=(7, 3.8))
 
     precios_sens = [
-        float(metricas["precio_adquisicion"]),
-        float(metricas["precio_objetivo_15"]),
-        float(metricas["precio_objetivo_30000"]),
-        float(metricas["precio_transmision"]),
+        f(metricas["precio_adquisicion"]),
+        f(metricas["precio_objetivo_15"]),
+        f(metricas["precio_objetivo_30000"]),
+        f(metricas["precio_transmision"]),
     ]
 
     labels_sens = [
@@ -1081,7 +1095,7 @@ def generar_pdf_estudio(request, proyecto_id):
     for x, y in zip(labels_sens, precios_sens):
         ax3.text(
             x,
-            float(y) * 1.01,
+            f(y) * 1.01,
             fmt_eur(y),
             ha="center",
             fontsize=9,
@@ -1093,7 +1107,10 @@ def generar_pdf_estudio(request, proyecto_id):
     ax3.grid(True, linestyle="--", alpha=0.3)
 
     buffer3 = io.BytesIO()
-    plt.tight_layout()
+    try:
+        plt.tight_layout()
+    except Exception:
+        pass
     plt.savefig(buffer3, format="png", dpi=160)
     plt.close(fig3)
 
