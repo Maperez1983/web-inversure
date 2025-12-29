@@ -1084,18 +1084,22 @@ def generar_pdf_estudio(request, proyecto_id):
         "Venta estimada",
     ]
 
+    x_pos = list(range(len(labels_sens)))
+
     ax3.plot(
-        labels_sens,
+        x_pos,
         precios_sens,
         marker="o",
         linewidth=2.5,
         color=COLOR_AZUL
     )
+    ax3.set_xticks(x_pos)
+    ax3.set_xticklabels(labels_sens)
 
-    for x, y in zip(labels_sens, precios_sens):
+    for i, y in enumerate(precios_sens):
         ax3.text(
-            x,
-            f(y) * 1.01,
+            i,
+            y * 1.01,
             fmt_eur(y),
             ha="center",
             fontsize=9,
