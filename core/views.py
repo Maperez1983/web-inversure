@@ -1239,7 +1239,6 @@ from django.views.decorators.http import require_GET
 def proyecto_detalle(request, proyecto_id):
     proyecto = get_object_or_404(Proyecto, id=proyecto_id)
 
-    # Gastos asociados al proyecto
     gastos = GastoProyecto.objects.filter(
         proyecto=proyecto
     ).order_by("-fecha")
@@ -1258,9 +1257,6 @@ def proyecto_detalle(request, proyecto_id):
         },
     )
 
-# === PROYECTO GASTOS VIEW ===
-from django.views.decorators.http import require_GET
-from django.db.models import Sum
 
 @require_GET
 def proyecto_gastos(request, proyecto_id):
