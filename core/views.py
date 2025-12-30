@@ -9,6 +9,7 @@ def f(x):
 
 from django.shortcuts import render, redirect
 from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.csrf import csrf_protect
 from decimal import Decimal
 from .models import Proyecto, Cliente, Participacion, Simulacion
 from .models import GastoProyecto
@@ -485,8 +486,11 @@ def lista_estudios(request):
 def lista_proyectos(request):
     """
     Lista de proyectos REAL.
-    Aquí se pasan objetos Proyecto directamente al template,
-    no diccionarios intermedios.
+    Se pasa al template información ENRIQUECIDA para cada card:
+    - capital objetivo
+    - capital captado
+    - porcentaje completado
+    - ROI dinámico (estimado o real según estado)
     """
     estado = request.GET.get("estado")
 
@@ -496,11 +500,51 @@ def lista_proyectos(request):
     if estado and estado != "todos":
         proyectos_qs = proyectos_qs.filter(estado__iexact=estado)
 
+    proyectos_enriquecidos = []
+
+    for proyecto in proyectos_qs:
+        # Capital objetivo → precio de adquisición + gastos previstos
+        capital_objetivo = (
+            (proyecto.precio_propiedad or 0)
+            + (proyecto.notaria or 0)
+            + (proyecto.registro or 0)
+            + (proyecto.itp or 0)
+            + (proyecto.otros_gastos_compra or 0)
+        )
+
+        # Capital captado (participaciones reales)
+        participaciones = Participacion.objects.filter(proyecto=proyecto)
+        capital_captado = participaciones.aggregate(
+            total=Sum("importe_invertido")
+        )["total"] or 0
+
+        porcentaje_completado = (
+            (capital_captado / capital_objetivo * 100)
+            if capital_objetivo > 0 else 0
+        )
+
+        # ROI dinámico
+        if proyecto.estado in ["cerrado", "cerrado_positivo"]:
+            roi_mostrar = proyecto.roi or 0
+            roi_tipo = "real"
+        else:
+            roi_mostrar = proyecto.roi or 0
+            roi_tipo = "estimado"
+
+        proyectos_enriquecidos.append({
+            "proyecto": proyecto,
+            "capital_objetivo": capital_objetivo,
+            "capital_captado": capital_captado,
+            "porcentaje_completado": round(porcentaje_completado, 2),
+            "roi": roi_mostrar,
+            "roi_tipo": roi_tipo,
+        })
+
     return render(
         request,
         "core/lista_proyectos.html",
         {
-            "proyectos": proyectos_qs,
+            "proyectos": proyectos_enriquecidos,
             "estado_actual": estado,
         },
     )
@@ -567,6 +611,56 @@ def proyecto_detalle(request, proyecto_id):
         "core/proyecto_detalle.html",
         contexto
     )
+
+# === Proyecto Gastos View ===
+
+def proyecto_gastos(request, proyecto_id):
+    proyecto = get_object_or_404(Proyecto, id=proyecto_id)
+
+    gastos = GastoProyecto.objects.filter(proyecto=proyecto).order_by("-fecha")
+    total_gastos = gastos.aggregate(total=Sum("importe"))["total"] or 0
+
+    contexto = {
+        "proyecto": proyecto,
+        "gastos": gastos,
+        "total_gastos": total_gastos,
+    }
+
+    return render(
+        request,
+        "core/proyecto_gastos.html",
+        contexto
+    )
+
+# === Nueva vista para crear gasto de proyecto ===
+from django.views.decorators.http import require_POST
+from django.shortcuts import get_object_or_404, redirect
+from decimal import Decimal, InvalidOperation
+
+@require_POST
+def proyecto_gasto_nuevo(request, proyecto_id):
+    """
+    Crea un nuevo gasto asociado a un proyecto y redirige siempre a la vista de gastos del proyecto.
+    """
+    proyecto = get_object_or_404(Proyecto, id=proyecto_id)
+    concepto = request.POST.get("concepto")
+    tipo = request.POST.get("tipo")
+    importe_raw = request.POST.get("importe")
+    fecha = request.POST.get("fecha")
+    observaciones = request.POST.get("observaciones")
+    try:
+        importe = Decimal(str(importe_raw).replace(",", "."))
+    except (InvalidOperation, ValueError, TypeError):
+        importe = Decimal("0")
+    GastoProyecto.objects.create(
+        proyecto=proyecto,
+        concepto=concepto,
+        tipo=tipo,
+        importe=importe,
+        fecha=fecha,
+        observaciones=observaciones,
+    )
+    return redirect("core:proyecto_gastos", proyecto_id=proyecto.id)
 
 
 # Vista clientes
@@ -781,6 +875,7 @@ def convertir_simulacion_a_proyecto(request, simulacion_id):
 
 
 
+@csrf_protect
 def simulador_basico(request):
     # Valores por defecto (para que NUNCA se borren)
     direccion = ""
