@@ -86,7 +86,7 @@
     </form>
 
     {% if resultado %}
-    <hr class="my-4">
+    <hr class="my-4" id="resultado-analisis">
 
     <div class="row g-4">
 
@@ -237,6 +237,13 @@
       });
     });
   }
+
+  window.addEventListener('load', function () {
+    const el = document.getElementById('resultado-analisis');
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  });
 })();
 </script>
 {% endblock %}

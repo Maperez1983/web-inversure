@@ -50,6 +50,11 @@ urlpatterns = [
         name="proyecto_gastos",
     ),
     path(
+        "proyectos/<int:proyecto_id>/gastos/nuevo/",
+        views.proyecto_gasto_nuevo,
+        name="proyecto_gasto_nuevo",
+    ),
+    path(
         "proyectos/<int:proyecto_id>/inversores/",
         views.participacion_create,
         name="participacion_create",
