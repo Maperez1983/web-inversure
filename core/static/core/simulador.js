@@ -273,6 +273,11 @@ document.addEventListener("DOMContentLoaded", () => {
     const form = document.querySelector("form");
     if (form) {
         form.addEventListener("submit", () => {
+            const valoresVisibles = {};
+            document.querySelectorAll('[data-euro], .euro-input').forEach(input => {
+                valoresVisibles[input.name] = input.value;
+            });
+
             document.querySelectorAll('[data-euro], .euro-input').forEach(input => {
                 const name = input.getAttribute("name") || "";
                 const esValoracion = [
@@ -288,6 +293,16 @@ document.addEventListener("DOMContentLoaded", () => {
                     input.value = parseEuro(input.value);
                 }
             });
+
+            setTimeout(() => {
+                document.querySelectorAll('[data-euro], .euro-input').forEach(input => {
+                    if (valoresVisibles[input.name] !== undefined) {
+                        input.value = valoresVisibles[input.name];
+                    }
+                });
+                recalcMediaValoraciones();
+                recalcReforma();
+            }, 0);
         });
     }
 
