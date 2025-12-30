@@ -138,18 +138,9 @@
                         <input type="hidden" name="beneficio" value="{{ resultado.beneficio }}">
                         <input type="hidden" name="roi" value="{{ resultado.roi }}">
                         <button type="submit" class="btn btn-outline-primary w-100 mb-2">
-                            Guardar análisis
+                            Convertir a estudio
                         </button>
                     </form>
-
-                    {% if simulacion %}
-                    <form method="post" action="{% url 'core:convertir_simulacion_a_proyecto' simulacion.id %}">
-                        {% csrf_token %}
-                        <button type="submit" class="btn btn-success w-100 mb-2">
-                            Convertir en estudio
-                        </button>
-                    </form>
-                    {% endif %}
 
                     <a href="{% url 'core:simulador_basico' %}" class="btn btn-outline-danger w-100">
                         Borrar análisis
