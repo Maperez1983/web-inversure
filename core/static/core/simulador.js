@@ -170,6 +170,30 @@ function abrirCatastro() {
 }
 
 /* ===============================
+   CONTROL BOTÓN CATASTRO
+=============================== */
+
+function controlarBotonCatastro() {
+    const refInput =
+        document.querySelector('[name="ref_catastral"]') ||
+        document.getElementById("ref_catastral");
+    const btnCatastro = document.getElementById("btnCatastro");
+
+    if (!refInput || !btnCatastro) return;
+
+    const toggle = () => {
+        const activa = refInput.value.trim().length > 0;
+        btnCatastro.disabled = !activa;
+        btnCatastro.style.opacity = activa ? "1" : "0.5";
+        btnCatastro.style.cursor = activa ? "pointer" : "not-allowed";
+    };
+
+    refInput.addEventListener("input", toggle);
+    refInput.addEventListener("blur", toggle);
+    toggle();
+}
+
+/* ===============================
    INIT
 =============================== */
 
@@ -177,6 +201,22 @@ document.addEventListener("DOMContentLoaded", () => {
 
     activarFormatoEuroGlobal();
     recalcMediaValoraciones();
+    // ===============================
+    // REACCIONAR A CAMBIOS EN VALORACIONES
+    // ===============================
+    [
+        "val_idealista",
+        "val_fotocasa",
+        "val_registradores",
+        "val_casafari",
+        "val_tasacion"
+    ].forEach(name => {
+        const el = document.querySelector(`[name="${name}"]`);
+        if (el) {
+            el.addEventListener("input", recalcMediaValoraciones);
+            el.addEventListener("blur", recalcMediaValoraciones);
+        }
+    });
     recalcPrecioCompraInmueble();
     activarMapaAutomatico();
     aplicarFormatoEuroInicial();
@@ -227,4 +267,6 @@ document.addEventListener("DOMContentLoaded", () => {
             });
         });
     }
+
+    controlarBotonCatastro();
 });
