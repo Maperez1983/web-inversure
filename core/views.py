@@ -139,7 +139,12 @@ def simulador(request, proyecto_id=None):
     - No toca mapa ni JS
     """
 
-    proyecto = get_object_or_404(Proyecto, id=proyecto_id) if proyecto_id else None
+    proyecto = None
+    if proyecto_id:
+        try:
+            proyecto = Proyecto.objects.get(id=proyecto_id)
+        except Proyecto.DoesNotExist:
+            return redirect("core:estudio_detalle", proyecto_id)
     resultado = None
     editable = True
 
