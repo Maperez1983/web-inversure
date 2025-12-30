@@ -17,6 +17,14 @@ DEBUG = True
 
 ALLOWED_HOSTS = ["*"]
 
+# =========================
+# CSRF (Render / Producción)
+# =========================
+
+CSRF_TRUSTED_ORIGINS = [
+    "https://web-inversure-1.onrender.com",
+]
+
 
 # =========================
 # APLICACIONES
@@ -139,4 +147,3 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
-
