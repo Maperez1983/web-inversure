@@ -222,7 +222,18 @@ document.addEventListener("DOMContentLoaded", () => {
     aplicarFormatoEuroInicial();
 
     document.querySelectorAll('[data-euro], .euro-input').forEach(el => {
-        el.addEventListener("input", () => el.dataset.manual = "1");
+        const name = el.getAttribute("name") || "";
+        const esValoracion = [
+            "val_idealista",
+            "val_fotocasa",
+            "val_registradores",
+            "val_casafari",
+            "val_tasacion"
+        ].includes(name);
+
+        if (!esValoracion) {
+            el.addEventListener("input", () => el.dataset.manual = "1");
+        }
     });
 
     const direccion = document.getElementById("direccion");
@@ -263,7 +274,19 @@ document.addEventListener("DOMContentLoaded", () => {
     if (form) {
         form.addEventListener("submit", () => {
             document.querySelectorAll('[data-euro], .euro-input').forEach(input => {
-                input.value = parseEuro(input.value);
+                const name = input.getAttribute("name") || "";
+                const esValoracion = [
+                    "val_idealista",
+                    "val_fotocasa",
+                    "val_registradores",
+                    "val_casafari",
+                    "val_tasacion",
+                    "media_valoraciones"
+                ].includes(name);
+
+                if (!esValoracion) {
+                    input.value = parseEuro(input.value);
+                }
             });
         });
     }
