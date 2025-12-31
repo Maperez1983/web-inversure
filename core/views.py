@@ -822,9 +822,9 @@ def proyecto_gastos(request, proyecto_id):
         "limpieza_vaciado": gasto_base("limpieza / vaciado"),
 
         # Comisiones configurables
-        "comision_inversure_pct": datos_economicos.comision_inversure_pct,
-        "administracion_pct": datos_economicos.administracion_pct,
-        "comercializacion_pct": datos_economicos.comercializacion_pct,
+        "comision_inversure_pct": getattr(datos_economicos, "comision_inversure_pct", Decimal("0")),
+        "administracion_pct": getattr(datos_economicos, "administracion_pct", Decimal("0")),
+        "comercializacion_pct": getattr(datos_economicos, "comercializacion_pct", Decimal("0")),
     }
 
 
