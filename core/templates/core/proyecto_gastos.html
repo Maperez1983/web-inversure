@@ -1,98 +1,157 @@
 {% load humanize %}
-    <!-- TABLA DE GASTOS ORDINARIOS -->
-    <div class="card shadow-sm rounded-3 mb-4">
-        <div class="card-body p-0">
-            <h5 class="card-title p-3 mb-0">Gastos Ordinarios</h5>
-            <ul class="list-group list-group-flush mb-3">
-                <li class="list-group-item">Notaría <span class="badge bg-secondary ms-2">pendiente</span></li>
-                <li class="list-group-item">Impuestos <span class="badge bg-secondary ms-2">pendiente</span></li>
-                <li class="list-group-item">Registro <span class="badge bg-secondary ms-2">pendiente</span></li>
-                <li class="list-group-item">Gestoría <span class="badge bg-secondary ms-2">pendiente</span></li>
-                <li class="list-group-item">IBI <span class="badge bg-secondary ms-2">pendiente</span></li>
-                <li class="list-group-item">Alarma <span class="badge bg-secondary ms-2">pendiente</span></li>
-                <li class="list-group-item">Limpieza/Vaciado <span class="badge bg-secondary ms-2">pendiente</span></li>
-                <li class="list-group-item">Cerrajero <span class="badge bg-secondary ms-2">pendiente</span></li>
-                <li class="list-group-item">Agua <span class="badge bg-secondary ms-2">pendiente</span></li>
-                <li class="list-group-item">Luz <span class="badge bg-secondary ms-2">pendiente</span></li>
-                <li class="list-group-item">Comunidad <span class="badge bg-secondary ms-2">pendiente</span></li>
-                <li class="list-group-item">Comercialización <span class="badge bg-secondary ms-2">pendiente</span></li>
-                <li class="list-group-item">Administración <span class="badge bg-secondary ms-2">pendiente</span></li>
-                <li class="list-group-item">Comisión Inversure <span class="badge bg-secondary ms-2">pendiente</span></li>
-            </ul>
-            {% if gastos_ordinarios %}
-                <table class="table table-striped mb-0">
-                    <thead class="table-light">
-                        <tr>
-                            <th>Concepto</th>
-                            <th>Tipo</th>
-                            <th class="text-end">Importe</th>
-                            <th>Fecha</th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for gasto in gastos_ordinarios %}
-                        <tr>
-                            <td>{{ gasto.concepto }}</td>
-                            <td>{{ gasto.get_tipo_display }}</td>
-                            <td class="text-end">
-                                {{ gasto.importe|floatformat:2|intcomma }} €
-                            </td>
-                            <td>{{ gasto.fecha|date:"d/m/Y" }}</td>
-                            <td class="text-end">
-                                <a href="#" class="btn btn-sm btn-outline-secondary">
-                                    Facturas
-                                </a>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            {% else %}
-                <div class="p-4 text-muted text-center">
-                    No hay gastos ordinarios registrados en este proyecto.
-                </div>
-            {% endif %}
+
+<div class="container-fluid">
+
+  <!-- CABECERA -->
+  <div class="mb-4">
+    <h3 class="fw-semibold mb-1">Datos económicos del proyecto</h3>
+    <p class="text-muted mb-0">
+      Control y seguimiento del tráfico económico de la operación
+    </p>
+  </div>
+
+  <!-- RESUMEN ECONÓMICO -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-3">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <div class="small text-muted">Gastos totales</div>
+          <div class="fs-5 fw-semibold">— €</div>
         </div>
+      </div>
     </div>
 
-    <!-- TABLA DE GASTOS EXTRAORDINARIOS -->
-    <div class="card shadow-sm rounded-3">
-        <div class="card-body p-0">
-            <h5 class="card-title p-3 mb-0">Gastos Extraordinarios</h5>
-            {% if gastos_extraordinarios %}
-                <table class="table table-striped mb-0">
-                    <thead class="table-light">
-                        <tr>
-                            <th>Concepto</th>
-                            <th>Tipo</th>
-                            <th class="text-end">Importe</th>
-                            <th>Fecha</th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for gasto in gastos_extraordinarios %}
-                        <tr>
-                            <td>{{ gasto.concepto }}</td>
-                            <td>{{ gasto.get_tipo_display }}</td>
-                            <td class="text-end">
-                                {{ gasto.importe|floatformat:2|intcomma }} €
-                            </td>
-                            <td>{{ gasto.fecha|date:"d/m/Y" }}</td>
-                            <td class="text-end">
-                                <a href="#" class="btn btn-sm btn-outline-secondary">
-                                    Facturas
-                                </a>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            {% else %}
-                <div class="p-4 text-muted text-center">
-                    No hay gastos extraordinarios registrados en este proyecto.
-                </div>
-            {% endif %}
+    <div class="col-md-3">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <div class="small text-muted">Gastos ordinarios</div>
+          <div class="fs-5 fw-semibold">— €</div>
         </div>
+      </div>
     </div>
+
+    <div class="col-md-3">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <div class="small text-muted">Gastos extraordinarios</div>
+          <div class="fs-5 fw-semibold">— €</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-3">
+      <div class="card shadow-sm border-start border-4 border-warning">
+        <div class="card-body">
+          <div class="small text-muted">Impacto en beneficio</div>
+          <div class="fs-5 fw-semibold">— €</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- GASTOS ESTRUCTURALES -->
+  <div class="card shadow-sm mb-4">
+    <div class="card-header bg-light fw-semibold">
+      Gastos estructurales del proyecto
+    </div>
+    <div class="card-body">
+      <p class="text-muted small mb-3">
+        Conceptos que siempre forman parte de la operación.
+      </p>
+
+      <div class="row g-2">
+        <div class="col-md-4"><div class="d-flex justify-content-between p-2 border rounded"><span>Notaría</span><span class="badge bg-secondary">pendiente</span></div></div>
+        <div class="col-md-4"><div class="d-flex justify-content-between p-2 border rounded"><span>Impuestos</span><span class="badge bg-secondary">pendiente</span></div></div>
+        <div class="col-md-4"><div class="d-flex justify-content-between p-2 border rounded"><span>Registro</span><span class="badge bg-secondary">pendiente</span></div></div>
+        <div class="col-md-4"><div class="d-flex justify-content-between p-2 border rounded"><span>Gestoría</span><span class="badge bg-secondary">pendiente</span></div></div>
+        <div class="col-md-4"><div class="d-flex justify-content-between p-2 border rounded"><span>IBI</span><span class="badge bg-secondary">pendiente</span></div></div>
+        <div class="col-md-4"><div class="d-flex justify-content-between p-2 border rounded"><span>Alarma</span><span class="badge bg-secondary">pendiente</span></div></div>
+        <div class="col-md-4"><div class="d-flex justify-content-between p-2 border rounded"><span>Limpieza / Vaciado</span><span class="badge bg-secondary">pendiente</span></div></div>
+        <div class="col-md-4"><div class="d-flex justify-content-between p-2 border rounded"><span>Cerrajero</span><span class="badge bg-secondary">pendiente</span></div></div>
+        <div class="col-md-4"><div class="d-flex justify-content-between p-2 border rounded"><span>Agua</span><span class="badge bg-secondary">pendiente</span></div></div>
+        <div class="col-md-4"><div class="d-flex justify-content-between p-2 border rounded"><span>Luz</span><span class="badge bg-secondary">pendiente</span></div></div>
+        <div class="col-md-4"><div class="d-flex justify-content-between p-2 border rounded"><span>Comunidad</span><span class="badge bg-secondary">pendiente</span></div></div>
+        <div class="col-md-4"><div class="d-flex justify-content-between p-2 border rounded"><span>Comercialización</span><span class="badge bg-secondary">pendiente</span></div></div>
+        <div class="col-md-4"><div class="d-flex justify-content-between p-2 border rounded"><span>Administración</span><span class="badge bg-secondary">pendiente</span></div></div>
+        <div class="col-md-4"><div class="d-flex justify-content-between p-2 border rounded"><span>Comisión Inversure</span><span class="badge bg-secondary">pendiente</span></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- GASTOS ORDINARIOS -->
+  <div class="card shadow-sm mb-4">
+    <div class="card-header bg-light fw-semibold">
+      Gastos ordinarios registrados
+    </div>
+
+    {% if gastos_ordinarios %}
+    <div class="table-responsive">
+      <table class="table table-striped mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Concepto</th>
+            <th>Tipo</th>
+            <th class="text-end">Importe</th>
+            <th>Fecha</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for gasto in gastos_ordinarios %}
+          <tr>
+            <td>{{ gasto.concepto }}</td>
+            <td>{{ gasto.get_tipo_display }}</td>
+            <td class="text-end">{{ gasto.importe|floatformat:2|intcomma }} €</td>
+            <td>{{ gasto.fecha|date:"d/m/Y" }}</td>
+            <td class="text-end">
+              <a href="#" class="btn btn-sm btn-outline-secondary">Facturas</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+      <div class="p-4 text-center text-muted">No hay gastos ordinarios registrados.</div>
+    {% endif %}
+  </div>
+
+  <!-- GASTOS EXTRAORDINARIOS -->
+  <div class="card shadow-sm border-start border-4 border-danger">
+    <div class="card-header bg-light fw-semibold">
+      Gastos extraordinarios
+    </div>
+
+    {% if gastos_extraordinarios %}
+    <div class="table-responsive">
+      <table class="table table-striped mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Concepto</th>
+            <th>Tipo</th>
+            <th class="text-end">Importe</th>
+            <th>Fecha</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for gasto in gastos_extraordinarios %}
+          <tr>
+            <td>{{ gasto.concepto }}</td>
+            <td>{{ gasto.get_tipo_display }}</td>
+            <td class="text-end">{{ gasto.importe|floatformat:2|intcomma }} €</td>
+            <td>{{ gasto.fecha|date:"d/m/Y" }}</td>
+            <td class="text-end">
+              <a href="#" class="btn btn-sm btn-outline-secondary">Facturas</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+      <div class="p-4 text-center text-muted">No hay gastos extraordinarios registrados.</div>
+    {% endif %}
+  </div>
+
+</div>
