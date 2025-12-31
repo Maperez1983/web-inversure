@@ -1,4 +1,5 @@
 {% extends "core/base.html" %}
+{% load humanize %}
 
 {% block content %}
 <div class="inversure-app">
@@ -51,15 +52,21 @@
                   <div class="row text-center mb-4">
                     <div class="col-4">
                       <div class="fw-semibold small text-muted">Inversión</div>
-                      <div class="fw-bold">{{ item.capital_captado|floatformat:0 }} €</div>
+                      <div class="fw-bold">
+                        {{ item.capital_captado|default:0|floatformat:0|intcomma }} €
+                      </div>
                     </div>
                     <div class="col-4">
                       <div class="fw-semibold small text-muted">Objetivo</div>
-                      <div class="fw-bold">{{ item.capital_objetivo|floatformat:0 }} €</div>
+                      <div class="fw-bold">
+                        {{ item.capital_objetivo|default:0|floatformat:0|intcomma }} €
+                      </div>
                     </div>
                     <div class="col-4">
                       <div class="fw-semibold small text-muted">ROI</div>
-                      <div class="fw-bold">{{ item.roi|floatformat:2 }} %</div>
+                      <div class="fw-bold">
+                        {{ item.roi|default:0|floatformat:2 }} %
+                      </div>
                     </div>
                   </div>
 
