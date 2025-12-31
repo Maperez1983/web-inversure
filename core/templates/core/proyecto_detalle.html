@@ -84,13 +84,6 @@
         </div>
       </div>
 
-      {% if proyecto.estado in "estudio reservado comprado" %}
-        {% with fase="Captación" progreso=33 color="warning" %}
-      {% elif proyecto.estado in "en_venta comercializacion publicado negociacion" %}
-        {% with fase="Comercialización" progreso=66 color="primary" %}
-      {% else %}
-        {% with fase="Cierre" progreso=100 color="success" %}
-      {% endif %}
 
       <div class="d-flex justify-content-between align-items-center mb-2">
         <div class="fw-semibold">
