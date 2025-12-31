@@ -508,13 +508,12 @@ def lista_proyectos(request):
     proyectos_enriquecidos = []
 
     for proyecto in proyectos_qs:
-        # Capital objetivo → precio de adquisición + gastos previstos
+        # Capital objetivo → precio de adquisición + gastos previstos (actualizado)
         capital_objetivo = (
-            (proyecto.precio_propiedad or 0)
+            (proyecto.precio_compra_inmueble or 0)
+            + (proyecto.itp or 0)
             + (proyecto.notaria or 0)
             + (proyecto.registro or 0)
-            + (proyecto.itp or 0)
-            + (proyecto.otros_gastos_compra or 0)
         )
 
         # Capital captado (participaciones reales)
@@ -582,22 +581,29 @@ from django.db.models import Sum
 def proyecto_detalle(request, proyecto_id):
     proyecto = get_object_or_404(Proyecto, id=proyecto_id)
 
-    # KPIs operativos (solo lectura)
-    inversion_total = proyecto.precio_propiedad or 0
-    beneficio = proyecto.beneficio_neto or 0
-    roi = proyecto.roi or 0
-
+    # KPIs consolidados (solo lectura, C2.2)
     participaciones = Participacion.objects.filter(proyecto=proyecto)
     total_invertido = participaciones.aggregate(
         total=Sum("importe_invertido")
-    )["total"] or 0
+    )["total"] or Decimal("0")
 
     num_inversores = participaciones.count()
 
     gastos = GastoProyecto.objects.filter(proyecto=proyecto)
     total_gastos = gastos.aggregate(
         total=Sum("importe")
-    )["total"] or 0
+    )["total"] or Decimal("0")
+
+    inversion_total = (
+        (proyecto.precio_compra_inmueble or Decimal("0"))
+        + (proyecto.itp or Decimal("0"))
+        + (proyecto.notaria or Decimal("0"))
+        + (proyecto.registro or Decimal("0"))
+        + total_gastos
+    )
+
+    beneficio = proyecto.beneficio_neto or Decimal("0")
+    roi = proyecto.roi or Decimal("0")
 
     contexto = {
         "proyecto": proyecto,
