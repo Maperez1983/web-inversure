@@ -335,6 +335,49 @@ class Proyecto(models.Model):
 
 
 # =========================
+# MODELO DOCUMENTO DE PROYECTO
+# =========================
+class DocumentoProyecto(models.Model):
+    TIPO_CHOICES = [
+        ('escritura', 'Escritura'),
+        ('nota_simple', 'Nota simple'),
+        ('contrato', 'Contrato'),
+        ('tasacion', 'Tasación'),
+        ('otros', 'Otros'),
+    ]
+
+    proyecto = models.ForeignKey(
+        Proyecto,
+        on_delete=models.CASCADE,
+        related_name='documentos'
+    )
+    tipo = models.CharField(
+        max_length=30,
+        choices=TIPO_CHOICES
+    )
+    archivo = models.FileField(
+        upload_to='proyectos_documentos/%Y/%m/'
+    )
+    nombre_original = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True
+    )
+    fecha_documento = models.DateField(
+        null=True,
+        blank=True
+    )
+    observaciones = models.TextField(
+        blank=True,
+        null=True
+    )
+    creado = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.proyecto} · {self.tipo}"
+
+
+# =========================
 # MODELO GASTO DE PROYECTO
 # =========================
 class GastoProyecto(models.Model):
@@ -754,3 +797,172 @@ class Simulacion(models.Model):
 
     def __str__(self):
         return f"Simulación: {self.nombre}"
+#
+# =========================
+# MODELO DATOS ECONÓMICOS REALES DEL PROYECTO (G3.1)
+# =========================
+class DatosEconomicosProyecto(models.Model):
+
+    ESTADO_OPERATIVO_CHOICES = [
+        ("captacion", "Captación"),
+        ("comercializacion", "Comercialización"),
+        ("cierre", "Cierre"),
+        ("vendido", "Vendido"),
+        ("cancelado", "Cancelado"),
+    ]
+
+    proyecto = models.OneToOneField(
+        Proyecto,
+        on_delete=models.CASCADE,
+        related_name="datos_economicos"
+    )
+
+    # Estado operativo
+    estado_operativo = models.CharField(
+        max_length=20,
+        choices=ESTADO_OPERATIVO_CHOICES,
+        default="captacion"
+    )
+    fecha_estado = models.DateField(
+        null=True,
+        blank=True
+    )
+    observaciones_estado = models.TextField(
+        blank=True,
+        null=True
+    )
+
+    # --- PORCENTAJES DE GESTIÓN SOBRE BENEFICIO BRUTO ---
+    porcentaje_comercializacion = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=5,
+        help_text="Porcentaje de comercialización sobre el beneficio bruto"
+    )
+
+    porcentaje_administracion = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=5,
+        help_text="Porcentaje de administración sobre el beneficio bruto"
+    )
+
+    # --- ADQUISICIÓN REAL ---
+    precio_compra_real = models.DecimalField(
+        max_digits=12, decimal_places=2, null=True, blank=True
+    )
+    fecha_compra_real = models.DateField(
+        null=True, blank=True
+    )
+    tipo_adquisicion = models.CharField(
+        max_length=20,
+        null=True, blank=True
+    )
+    impuesto_tipo = models.CharField(
+        max_length=10, null=True, blank=True
+    )
+    impuesto_porcentaje_real = models.DecimalField(
+        max_digits=5, decimal_places=2, null=True, blank=True
+    )
+    impuesto_importe_real = models.DecimalField(
+        max_digits=12, decimal_places=2, null=True, blank=True
+    )
+    notaria_real = models.DecimalField(
+        max_digits=12, decimal_places=2, null=True, blank=True
+    )
+    registro_real = models.DecimalField(
+        max_digits=12, decimal_places=2, null=True, blank=True
+    )
+    gestoria_real = models.DecimalField(
+        max_digits=12, decimal_places=2, null=True, blank=True
+    )
+    otros_gastos_adquisicion_real = models.DecimalField(
+        max_digits=12, decimal_places=2, null=True, blank=True
+    )
+
+    # --- VENTA REAL ---
+    precio_venta_real = models.DecimalField(
+        max_digits=12, decimal_places=2, null=True, blank=True
+    )
+    fecha_venta_real = models.DateField(
+        null=True, blank=True
+    )
+    gastos_venta_real = models.DecimalField(
+        max_digits=12, decimal_places=2, null=True, blank=True
+    )
+    plusvalia_municipal_real = models.DecimalField(
+        max_digits=12, decimal_places=2, null=True, blank=True
+    )
+    honorarios_agencia_real = models.DecimalField(
+        max_digits=12, decimal_places=2, null=True, blank=True
+    )
+
+    # --- GESTIÓN INVERSURE ---
+    TIPO_COMISION_CHOICES = [
+        ("porcentaje_beneficio", "Porcentaje sobre beneficio"),
+        ("porcentaje_ingresos", "Porcentaje sobre ingresos"),
+        ("importe_fijo", "Importe fijo"),
+    ]
+
+    tipo_comision_gestion = models.CharField(
+        max_length=30,
+        choices=TIPO_COMISION_CHOICES,
+        default="porcentaje_beneficio"
+    )
+    valor_comision_gestion = models.DecimalField(
+        max_digits=8, decimal_places=2, null=True, blank=True
+    )
+
+    creado = models.DateTimeField(auto_now_add=True)
+    actualizado = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Datos económicos · {self.proyecto}"
+
+# =========================
+# MODELO MOVIMIENTO ECONÓMICO DE PROYECTO (G3.1)
+# =========================
+class MovimientoEconomicoProyecto(models.Model):
+
+    TIPO_CHOICES = [
+        ("operacion", "Operación"),
+        ("ingreso", "Ingreso"),
+        ("comercializacion", "Comercialización"),
+    ]
+
+    proyecto = models.ForeignKey(
+        Proyecto,
+        on_delete=models.CASCADE,
+        related_name="movimientos_economicos"
+    )
+
+    tipo = models.CharField(
+        max_length=20,
+        choices=TIPO_CHOICES
+    )
+    subtipo = models.CharField(
+        max_length=50,
+        blank=True,
+        null=True
+    )
+    concepto = models.CharField(
+        max_length=255
+    )
+    fecha = models.DateField()
+    importe = models.DecimalField(
+        max_digits=12, decimal_places=2
+    )
+    documento = models.ForeignKey(
+        'DocumentoProyecto',
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL
+    )
+
+    creado = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["fecha", "id"]
+
+    def __str__(self):
+        return f"{self.proyecto} · {self.concepto} · {self.importe} €"
