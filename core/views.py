@@ -890,8 +890,9 @@ def proyecto_gastos(request, proyecto_id):
 
             return redirect("core:proyecto_gastos", proyecto_id=proyecto.id)
 
-        # 🔒 SEGURIDAD: nunca dejar un POST sin respuesta
-        return redirect("core:proyecto_gastos", proyecto_id=proyecto.id)
+        # 🔒 SEGURIDAD: si el POST no coincide con ningún form_tipo,
+        # no redirigir (evita bucle infinito de redirecciones)
+        pass
 
     # =========================
     # LECTURA DE GASTOS
@@ -921,7 +922,7 @@ def proyecto_gastos(request, proyecto_id):
     # 1. Gastos clasificados por tipo
     def suma_gastos(tipo):
         return (
-            gastos.filter(tipo=tipo)
+            gastos.filter(categoria=tipo)
             .aggregate(total=Sum("importe"))["total"]
             or Decimal("0")
         )
@@ -1026,7 +1027,7 @@ def proyecto_gasto_nuevo(request, proyecto_id):
     GastoProyecto.objects.create(
         proyecto=proyecto,
         concepto=concepto,
-        tipo=tipo,
+        categoria=tipo,
         importe=importe,
         fecha=fecha,
         observaciones=observaciones,
