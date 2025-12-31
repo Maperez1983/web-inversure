@@ -812,7 +812,7 @@ def proyecto_gastos(request, proyecto_id):
         # Servicios fijos
         "alarma": Decimal("0"),
         "limpieza_vaciado": proyecto.limpieza_inicial or Decimal("0"),
-        "cerrajero": proyecto.seguridad_cerrajero or Decimal("0"),
+        "cerrajero": Decimal("0"),
 
         # Comisiones (desde DatosEconomicosProyecto)
         "comision_inversure_pct": datos_economicos.comision_inversure_pct,
@@ -967,7 +967,7 @@ def proyecto_gastos(request, proyecto_id):
         + (proyecto.ibi or Decimal("0"))
         + (proyecto.alarma or Decimal("0"))
         + (proyecto.limpieza_inicial or Decimal("0"))
-        + (proyecto.seguridad_cerrajero or Decimal("0"))
+        + Decimal("0")
     )
 
     # =========================
