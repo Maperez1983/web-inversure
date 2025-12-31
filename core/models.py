@@ -34,6 +34,27 @@ class Proyecto(models.Model):
     precio_compra_inmueble = models.DecimalField(
         max_digits=12, decimal_places=2, null=True, blank=True, default=None
     )
+
+    fecha_compra = models.DateField(
+        null=True,
+        blank=True,
+        help_text="Fecha real de adquisición del inmueble"
+    )
+
+    TIPO_ADQUISICION_CHOICES = (
+        ("directa", "Compra directa"),
+        ("deuda", "Compra de deuda"),
+        ("subasta", "Subasta"),
+        ("dacion", "Dación en pago"),
+    )
+
+    tipo_adquisicion = models.CharField(
+        max_length=20,
+        choices=TIPO_ADQUISICION_CHOICES,
+        null=True,
+        blank=True,
+        help_text="Tipo de adquisición del inmueble"
+    )
     precio_venta_estimado = models.DecimalField(
         max_digits=12, decimal_places=2, null=True, blank=True, default=None
     )
@@ -49,6 +70,19 @@ class Proyecto(models.Model):
     # =========================
     itp = models.DecimalField(
         max_digits=12, decimal_places=2, null=True, blank=True, default=None
+    )
+    impuesto_tipo = models.CharField(
+        max_length=10,
+        null=True,
+        blank=True,
+        help_text="Tipo de impuesto aplicado (ITP / IVA)"
+    )
+    impuesto_porcentaje = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Porcentaje de impuesto aplicado"
     )
     notaria = models.DecimalField(
         max_digits=12, decimal_places=2, null=True, blank=True, default=None
@@ -188,6 +222,12 @@ class Proyecto(models.Model):
         help_text="Duración estimada de la operación en meses"
     )
     # =========================
+    # NOTA:
+    # Los campos de resultados (beneficio, ROI, etc.)
+    # NO son fuente de verdad.
+    # Se recalculan dinámicamente en views.py
+    # y se almacenan solo a efectos informativos / históricos.
+    # =========================
     # RESULTADOS / MÉTRICAS
     # =========================
     beneficio_bruto = models.DecimalField(
@@ -221,9 +261,11 @@ class Proyecto(models.Model):
     # =========================
     ESTADO_CHOICES = (
         ("estudio", "En estudio"),
-        ("viable", "Viable"),
-        ("descartado", "Descartado"),
+        ("reservado", "Reservado"),
+        ("comprado", "Comprado"),
         ("operacion", "En operación"),
+        ("vendido", "Vendido"),
+        ("descartado", "Descartado"),
     )
 
     estado = models.CharField(
