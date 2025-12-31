@@ -20,13 +20,9 @@
     <div class="card-body">
       {% if proyecto.estado in "estudio reservado comprado" %}
         {% with fase="Captación" progreso=33 color="warning" %}
-      {% endif %}
-
-      {% if proyecto.estado in "en_venta comercializacion publicado negociacion" %}
+      {% elif proyecto.estado in "en_venta comercializacion publicado negociacion" %}
         {% with fase="Comercialización" progreso=66 color="primary" %}
-      {% endif %}
-
-      {% if proyecto.estado not in "estudio reservado comprado en_venta comercializacion publicado negociacion" %}
+      {% else %}
         {% with fase="Cierre" progreso=100 color="success" %}
       {% endif %}
 
