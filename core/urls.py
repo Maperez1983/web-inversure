@@ -74,6 +74,11 @@ urlpatterns = [
         views.participacion_create,
         name="participacion_create",
     ),
+    path(
+        "proyectos/<int:proyecto_id>/inversores/lista/",
+        views.proyecto_inversores,
+        name="proyecto_inversores",
+    ),
     path("clientes/", views.clientes, name="clientes"),
     path("clientes/nuevo/", views.cliente_create, name="cliente_create"),
     path("clientes/<int:cliente_id>/editar/", views.cliente_edit, name="cliente_edit"),
