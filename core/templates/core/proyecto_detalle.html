@@ -5,12 +5,12 @@
 <div class="container py-5">
 
   <div class="card mb-4 shadow-sm rounded-3 overflow-hidden">
-    <div class="px-4 py-3" style="background-color:#122135;">
+    <div class="px-4 py-3 text-white" style="background-color:#122135;">
       <div class="d-flex justify-content-between align-items-center">
         <div>
-          <h3 class="mb-0 text-white">Proyecto</h3>
-          <small class="text-light">
-            Vista general y estado del proyecto de inversión
+          <h3 class="mb-0">Proyecto</h3>
+          <small class="opacity-75">
+            {{ proyecto.direccion|default:"Proyecto de inversión inmobiliaria" }}
           </small>
         </div>
 
@@ -29,13 +29,49 @@
     </div>
   </div>
 
-  <!-- BLOQUE ESTADO -->
-  <div class="card mb-4 shadow-sm rounded-3">
-    <div class="p-3">
-      <h5>Estado del proyecto</h5>
-      <p class="mb-0">
-        Estado actual: <strong>{{ proyecto.estado }}</strong>
-      </p>
+  <div class="row g-3 mb-4">
+    <div class="col-md-3">
+      <div class="card shadow-sm text-center h-100">
+        <div class="card-body">
+          <div class="small text-muted">Capital objetivo</div>
+          <div class="fw-bold">
+            {{ proyecto.capital_objetivo|default:0|floatformat:0|intcomma }} €
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-3">
+      <div class="card shadow-sm text-center h-100">
+        <div class="card-body">
+          <div class="small text-muted">Capital captado</div>
+          <div class="fw-bold">
+            0 €
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-3">
+      <div class="card shadow-sm text-center h-100">
+        <div class="card-body">
+          <div class="small text-muted">Rentabilidad estimada</div>
+          <div class="fw-bold">
+            {{ proyecto.rentabilidad_estimada|default:0|floatformat:2 }} %
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-3">
+      <div class="card shadow-sm text-center h-100">
+        <div class="card-body">
+          <div class="small text-muted">Estado</div>
+          <div class="fw-bold">
+            {{ proyecto.estado }}
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
