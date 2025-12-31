@@ -12,6 +12,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.csrf import csrf_protect
 from decimal import Decimal
 from .models import Proyecto, Cliente, Participacion, Simulacion
+from .models import DocumentoProyecto
 from .models import GastoProyecto
 from .models import IngresoProyecto
 
@@ -582,11 +583,25 @@ from django.db.models import Sum
 def proyecto_detalle(request, proyecto_id):
     proyecto = get_object_or_404(Proyecto, id=proyecto_id)
 
+    # Capital objetivo del proyecto (adquisición + impuestos base)
+    capital_objetivo = (
+        (proyecto.precio_compra_inmueble or Decimal("0"))
+        + (proyecto.itp or Decimal("0"))
+        + (proyecto.notaria or Decimal("0"))
+        + (proyecto.registro or Decimal("0"))
+    )
+
     # KPIs consolidados (solo lectura, C2.2)
     participaciones = Participacion.objects.filter(proyecto=proyecto)
     total_invertido = participaciones.aggregate(
         total=Sum("importe_invertido")
     )["total"] or Decimal("0")
+
+    # Porcentaje captado
+    porcentaje_captado = (
+        (total_invertido / capital_objetivo * Decimal("100"))
+        if capital_objetivo > 0 else Decimal("0")
+    )
 
     num_inversores = participaciones.count()
 
@@ -608,6 +623,9 @@ def proyecto_detalle(request, proyecto_id):
 
     contexto = {
         "proyecto": proyecto,
+        "capital_objetivo": capital_objetivo,
+        "capital_captado": total_invertido,
+        "porcentaje_captado": porcentaje_captado,
         "kpis": {
             "inversion_total": inversion_total,
             "beneficio": beneficio,
@@ -623,6 +641,56 @@ def proyecto_detalle(request, proyecto_id):
         "core/proyecto_detalle.html",
         contexto
     )
+
+
+# === Proyecto Documentos View ===
+from django.views.decorators.csrf import csrf_protect
+from django.shortcuts import get_object_or_404, redirect
+from django.contrib import messages
+from decimal import Decimal
+import datetime
+
+@csrf_protect
+def proyecto_documentos(request, proyecto_id):
+    """
+    Vista para listar y subir documentos asociados a un proyecto.
+    GET: muestra los documentos.
+    POST: procesa subida de archivo.
+    """
+    proyecto = get_object_or_404(Proyecto, id=proyecto_id)
+    documentos = proyecto.documentos.all().order_by('-creado')
+
+    if request.method == "POST":
+        tipo = request.POST.get("tipo")
+        archivo = request.FILES.get("archivo")
+        fecha_documento = request.POST.get("fecha_documento")
+        observaciones = request.POST.get("observaciones")
+
+        # Validación mínima
+        if not archivo:
+            messages.error(request, "Debe seleccionar un archivo para subir.")
+        else:
+            doc = DocumentoProyecto(
+                proyecto=proyecto,
+                tipo=tipo,
+                archivo=archivo,
+                observaciones=observaciones
+            )
+            # Si hay fecha_documento, parsearla
+            if fecha_documento:
+                try:
+                    doc.fecha_documento = fecha_documento
+                except Exception:
+                    pass
+            doc.save()
+            messages.success(request, "Documento subido correctamente.")
+            return redirect("core:proyecto_documentos", proyecto_id=proyecto.id)
+
+    contexto = {
+        "proyecto": proyecto,
+        "documentos": documentos,
+    }
+    return render(request, "core/proyecto_documentos.html", contexto)
 
 # === Proyecto Gastos View ===
 
