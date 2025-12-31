@@ -853,18 +853,11 @@ def proyecto_gastos(request, proyecto_id):
             proyecto.tipo_adquisicion = request.POST.get("tipo_adquisicion") or None
             proyecto.impuesto_tipo = request.POST.get("impuesto_tipo") or None
 
-            # Campos numéricos (Decimal seguro)
-            def parse_decimal(val):
-                try:
-                    return Decimal(str(val).replace(",", "."))
-                except Exception:
-                    return None
-
-            proyecto.impuesto_porcentaje = parse_decimal(request.POST.get("impuesto_porcentaje"))
-            proyecto.itp = parse_decimal(request.POST.get("itp"))
-            proyecto.notaria = parse_decimal(request.POST.get("notaria"))
-            proyecto.registro = parse_decimal(request.POST.get("registro"))
-            proyecto.gestoria = parse_decimal(request.POST.get("gestoria"))
+            proyecto.impuesto_porcentaje = parse_euro(request.POST.get("impuesto_porcentaje"))
+            proyecto.itp = parse_euro(request.POST.get("itp"))
+            proyecto.notaria = parse_euro(request.POST.get("notaria"))
+            proyecto.registro = parse_euro(request.POST.get("registro"))
+            proyecto.gestoria = parse_euro(request.POST.get("gestoria"))
 
             proyecto.save()
             return redirect("core:proyecto_gastos", proyecto_id=proyecto.id)
@@ -897,6 +890,27 @@ def proyecto_gastos(request, proyecto_id):
     # =========================
     gastos = GastoProyecto.objects.filter(proyecto=proyecto).order_by("-fecha")
     total_gastos = gastos.aggregate(total=Sum("importe"))["total"] or 0
+
+    # =========================
+    # GASTOS ORDINARIOS Y EXTRAORDINARIOS (NUEVA DISPOSICIÓN)
+    # =========================
+
+    GASTOS_ORDINARIOS = [
+        "notaria",
+        "impuestos",
+        "registro",
+        "gestoria",
+        "ibi",
+        "comision_inversure",
+        "comercializacion",
+        "administracion",
+        "alarma",
+        "cerradura",
+        "desalojo",
+    ]
+
+    gastos_ordinarios = gastos.filter(concepto__in=GASTOS_ORDINARIOS)
+    gastos_extraordinarios = gastos.exclude(concepto__in=GASTOS_ORDINARIOS)
 
     # =========================
     # LECTURA DE INGRESOS (C2.3)
@@ -962,6 +976,8 @@ def proyecto_gastos(request, proyecto_id):
         "proyecto": proyecto,
         "gastos": gastos,
         "total_gastos": total_gastos,
+        "gastos_ordinarios": gastos_ordinarios,
+        "gastos_extraordinarios": gastos_extraordinarios,
     }
 
     return render(
@@ -986,10 +1002,7 @@ def proyecto_gasto_nuevo(request, proyecto_id):
     importe_raw = request.POST.get("importe")
     fecha = request.POST.get("fecha")
     observaciones = request.POST.get("observaciones")
-    try:
-        importe = Decimal(str(importe_raw).replace(",", "."))
-    except (InvalidOperation, ValueError, TypeError):
-        importe = Decimal("0")
+    importe = parse_euro(importe_raw)
     GastoProyecto.objects.create(
         proyecto=proyecto,
         concepto=concepto,
