@@ -62,21 +62,36 @@
     <!-- DATOS DE ADQUISICIÓN -->
     <div class="card mb-4 shadow-sm rounded-3">
       <div class="card-body">
+        <form method="post">
+          {% csrf_token %}
         <h5 class="card-title">Datos de adquisición</h5>
         <div class="row">
           <div class="col-md-4 mb-3">
             <label class="form-label">Precio de compra</label>
-            <div class="form-control-plaintext text-muted">—</div>
+            <input type="number"
+                   name="precio_compra_inmueble"
+                   step="0.01"
+                   class="form-control"
+                   value="{{ proyecto.precio_compra_inmueble|default_if_none:'' }}">
           </div>
 
           <div class="col-md-4 mb-3">
             <label class="form-label">Fecha de compra</label>
-            <div class="form-control-plaintext text-muted">—</div>
+            <input type="date"
+                   name="fecha_compra"
+                   class="form-control"
+                   value="{{ proyecto.fecha_compra|date:'Y-m-d' }}">
           </div>
 
           <div class="col-md-4 mb-3">
             <label class="form-label">Tipo de adquisición</label>
-            <div class="form-control-plaintext text-muted">—</div>
+            <select name="tipo_adquisicion" class="form-select">
+              <option value="">—</option>
+              <option value="directa" {% if proyecto.tipo_adquisicion == "directa" %}selected{% endif %}>Compra directa</option>
+              <option value="deuda" {% if proyecto.tipo_adquisicion == "deuda" %}selected{% endif %}>Compra de deuda</option>
+              <option value="subasta" {% if proyecto.tipo_adquisicion == "subasta" %}selected{% endif %}>Subasta</option>
+              <option value="dacion" {% if proyecto.tipo_adquisicion == "dacion" %}selected{% endif %}>Dación en pago</option>
+            </select>
           </div>
         </div>
 
@@ -85,17 +100,29 @@
         <div class="row">
           <div class="col-md-3 mb-3">
             <label class="form-label">Impuesto</label>
-            <div class="form-control-plaintext text-muted">—</div>
+            <select name="impuesto_tipo" class="form-select">
+              <option value="">—</option>
+              <option value="ITP" {% if proyecto.impuesto_tipo == "ITP" %}selected{% endif %}>ITP</option>
+              <option value="IVA" {% if proyecto.impuesto_tipo == "IVA" %}selected{% endif %}>IVA</option>
+            </select>
           </div>
 
           <div class="col-md-3 mb-3">
             <label class="form-label">% Impuesto</label>
-            <div class="form-control-plaintext text-muted">—</div>
+            <input type="number"
+                   name="impuesto_porcentaje"
+                   step="0.01"
+                   class="form-control"
+                   value="{{ proyecto.impuesto_porcentaje|default_if_none:'' }}">
           </div>
 
           <div class="col-md-3 mb-3">
             <label class="form-label">Importe impuesto</label>
-            <div class="form-control-plaintext text-muted">—</div>
+            <input type="number"
+                   name="itp"
+                   step="0.01"
+                   class="form-control"
+                   value="{{ proyecto.itp|default_if_none:'' }}">
           </div>
         </div>
 
@@ -104,19 +131,37 @@
         <div class="row">
           <div class="col-md-3 mb-3">
             <label class="form-label">Notaría</label>
-            <div class="form-control-plaintext text-muted">—</div>
+            <input type="number"
+                   step="0.01"
+                   class="form-control"
+                   name="notaria"
+                   value="{{ proyecto.notaria|default_if_none:'' }}">
           </div>
 
           <div class="col-md-3 mb-3">
             <label class="form-label">Registro</label>
-            <div class="form-control-plaintext text-muted">—</div>
+            <input type="number"
+                   step="0.01"
+                   class="form-control"
+                   name="registro"
+                   value="{{ proyecto.registro|default_if_none:'' }}">
           </div>
 
           <div class="col-md-3 mb-3">
             <label class="form-label">Gestoría</label>
-            <div class="form-control-plaintext text-muted">—</div>
+            <input type="number"
+                   step="0.01"
+                   class="form-control"
+                   name="gestoria"
+                   value="{{ proyecto.gestoria|default_if_none:'' }}">
           </div>
         </div>
+        <div class="text-end mt-3">
+          <button type="submit" class="btn btn-primary btn-sm">
+            Guardar datos de adquisición
+          </button>
+        </div>
+      </form>
       </div>
     </div>
 
