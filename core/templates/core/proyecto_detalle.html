@@ -123,36 +123,69 @@
 
     </div>
 
-    <div class="border rounded-3 p-3 bg-white">
-      <!-- BLOQUE ESTADO DE LA INVERSIÓN (GRÁFICO) -->
+    <!-- BLOQUE 3 · CAPITAL E INVERSORES -->
+    <div class="bg-white border-top border-bottom px-4 py-4">
+
+      <div class="mb-3 d-flex justify-content-between align-items-center">
+        <div>
+          <h6 class="mb-1">Situación de la inversión</h6>
+          <div class="small text-muted">
+            Estado de la captación de capital del proyecto
+          </div>
+        </div>
+        <a href="{% url 'core:proyecto_gastos' proyecto.id %}"
+           class="btn btn-sm btn-outline-primary">
+          Ver datos económicos
+        </a>
+      </div>
+
       <div class="row align-items-center">
+
+        <!-- KPIs -->
         <div class="col-md-7">
-          <ul class="mb-0 text-start">
-            <li><span class="small text-muted">Capital objetivo:</span>
+          <ul class="mb-3">
+            <li>
+              <span class="small text-muted">Capital objetivo:</span>
               <span class="fw-semibold">
                 {{ proyecto.capital_objetivo|default:0|floatformat:0|intcomma }} €
               </span>
             </li>
-            <li><span class="small text-muted">Capital captado:</span>
-              <span class="fw-semibold">
-                {{ capital_captado|floatformat:0|intcomma }} €
+            <li>
+              <span class="small text-muted">Capital captado:</span>
+              <span class="fw-semibold text-success">
+                {{ capital_captado|default:0|floatformat:0|intcomma }} €
               </span>
             </li>
-            <li><span class="small text-muted">Capital pendiente:</span>
-              <span class="fw-semibold">
-                {{ proyecto.capital_objetivo|default:0|floatformat:0|intcomma }} €
+            <li>
+              <span class="small text-muted">Capital pendiente:</span>
+              <span class="fw-semibold text-warning">
+                {{ capital_pendiente|default:0|floatformat:0|intcomma }} €
               </span>
             </li>
           </ul>
-        </div>
 
-        <div class="col-md-5 text-center">
-          <canvas id="capitalChart" style="max-width:240px; margin:auto; cursor:pointer;"></canvas>
-          <div class="small text-muted mt-2">
-            Clic para ver detalle económico
+          <div class="progress rounded-pill" style="height:8px;">
+            <div class="progress-bar bg-success"
+                 role="progressbar"
+                 style="width: {{ porcentaje_captado|default:0 }}%;">
+            </div>
+          </div>
+
+          <div class="small text-muted mt-1">
+            {{ porcentaje_captado|default:0 }} % del capital cubierto
           </div>
         </div>
+
+        <!-- GRÁFICO -->
+        <div class="col-md-5 text-center">
+          <canvas id="capitalChart" style="max-width:220px; margin:auto; cursor:pointer;"></canvas>
+          <div class="small text-muted mt-2">
+            Distribución del capital
+          </div>
+        </div>
+
       </div>
+
     </div>
 
     <div class="border-top pt-3 mt-3">
