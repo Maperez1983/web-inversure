@@ -16,7 +16,8 @@
     {% csrf_token %}
     <input type="hidden" name="form_tipo" value="datos_economicos">
 
-    <!-- PRECIO DE ESCRITURA -->
+    <!-- BLOQUE: Precio de escritura -->
+    <!-- Este bloque contiene el precio escriturado de adquisición, base de cálculo del proyecto -->
     <div class="card shadow-sm mb-4">
       <div class="card-body">
         <label for="precio_escritura" class="form-label fw-semibold">Precio de escritura</label>
@@ -28,7 +29,8 @@
       </div>
     </div>
 
-    <!-- RESUMEN ECONÓMICO -->
+    <!-- BLOQUE: Resumen económico -->
+    <!-- Resumen visual de los gastos totales, ordinarios, extraordinarios e impacto en beneficio -->
     <div class="row g-3 mb-4">
       <div class="col-md-3">
         <div class="card shadow-sm">
@@ -67,7 +69,8 @@
       </div>
     </div>
 
-    <!-- GASTOS ESTRUCTURALES -->
+    <!-- BLOQUE: Gastos estructurales del proyecto -->
+    <!-- Conceptos que siempre forman parte de la operación, divididos en gastos de adquisición y legales, y gastos operativos y de gestión -->
     <div class="card shadow-sm mb-4">
       <div class="card-header bg-light fw-semibold">
         Gastos estructurales del proyecto
@@ -77,12 +80,17 @@
           Conceptos que siempre forman parte de la operación.
         </p>
 
-        <div class="row g-2">
+        <h6 class="fw-semibold">Gastos de adquisición y legales</h6>
+        <div class="row g-2 mb-3">
           <div class="col-md-4"><div class="d-flex justify-content-between p-2 border rounded"><span>Notaría</span><input type="number" step="0.01" class="form-control form-control-sm text-end" name="notaria" value="{{ gastos_base.notaria }}"></div></div>
           <div class="col-md-4"><div class="d-flex justify-content-between p-2 border rounded"><span>Impuestos</span><input type="number" step="0.01" class="form-control form-control-sm text-end" name="impuestos" value="{{ gastos_base.impuestos }}"></div></div>
           <div class="col-md-4"><div class="d-flex justify-content-between p-2 border rounded"><span>Registro</span><input type="number" step="0.01" class="form-control form-control-sm text-end" name="registro" value="{{ gastos_base.registro }}"></div></div>
           <div class="col-md-4"><div class="d-flex justify-content-between p-2 border rounded"><span>Gestoría</span><input type="number" step="0.01" class="form-control form-control-sm text-end" name="gestoria" value="{{ gastos_base.gestoria }}"></div></div>
           <div class="col-md-4"><div class="d-flex justify-content-between p-2 border rounded"><span>IBI</span><input type="number" step="0.01" class="form-control form-control-sm text-end" name="ibi" value="{{ gastos_base.ibi }}"></div></div>
+        </div>
+
+        <h6 class="fw-semibold">Gastos operativos y de gestión</h6>
+        <div class="row g-2">
           <div class="col-md-4"><div class="d-flex justify-content-between p-2 border rounded"><span>Alarma</span><input type="number" step="0.01" class="form-control form-control-sm text-end" name="alarma" value="{{ gastos_base.alarma }}"></div></div>
           <div class="col-md-4"><div class="d-flex justify-content-between p-2 border rounded"><span>Limpieza / Vaciado</span><input type="number" step="0.01" class="form-control form-control-sm text-end" name="limpieza_vaciado" value="{{ gastos_base.limpieza_vaciado }}"></div></div>
           <div class="col-md-4"><div class="d-flex justify-content-between p-2 border rounded"><span>Cerrajero</span><input type="number" step="0.01" class="form-control form-control-sm text-end" name="cerrajero" value="{{ gastos_base.cerrajero }}"></div></div>
@@ -96,45 +104,8 @@
       </div>
     </div>
 
-    <!-- GASTOS ORDINARIOS -->
-    <div class="card shadow-sm mb-4">
-      <div class="card-header bg-light fw-semibold">
-        Gastos ordinarios registrados
-      </div>
-
-      {% if gastos_ordinarios %}
-      <div class="table-responsive">
-        <table class="table table-striped mb-0">
-          <thead class="table-light">
-            <tr>
-              <th>Concepto</th>
-              <th>Tipo</th>
-              <th class="text-end">Importe</th>
-              <th>Fecha</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for gasto in gastos_ordinarios %}
-            <tr>
-              <td>{{ gasto.concepto }}</td>
-              <td>{{ gasto.get_tipo_display }}</td>
-              <td class="text-end">{{ gasto.importe|floatformat:2|intcomma }} €</td>
-              <td>{{ gasto.fecha|date:"d/m/Y" }}</td>
-              <td class="text-end">
-                <a href="#" class="btn btn-sm btn-outline-secondary">Facturas</a>
-              </td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-      {% else %}
-        <div class="p-4 text-center text-muted">No hay gastos ordinarios registrados.</div>
-      {% endif %}
-    </div>
-
-    <!-- GASTOS EXTRAORDINARIOS -->
+    <!-- BLOQUE: Gastos extraordinarios -->
+    <!-- Gastos extraordinarios registrados en la operación -->
     <div class="card shadow-sm border-start border-4 border-danger">
       <div class="card-header bg-light fw-semibold">
         Gastos extraordinarios
