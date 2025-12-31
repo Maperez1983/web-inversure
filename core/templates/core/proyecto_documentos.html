@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block content %}
+
+<div class="container-fluid px-0">
+
+  <!-- HEADER -->
+  <div class="px-4 py-3" style="background-color:#122135;">
+    <div class="d-flex justify-content-between align-items-center">
+      <div>
+        <h3 class="mb-0 text-white">Documentación del proyecto</h3>
+        <small class="text-light">
+          {{ proyecto.titulo|default:"Proyecto sin título" }}
+        </small>
+      </div>
+
+      <a href="{% url 'core:proyecto_detalle' proyecto.id %}"
+         class="btn btn-outline-light btn-sm">
+        ← Volver al proyecto
+      </a>
+    </div>
+  </div>
+
+  <!-- FORMULARIO SUBIDA -->
+  <div class="p-4 border-bottom bg-light">
+    <form method="post" enctype="multipart/form-data" class="row g-3">
+      {% csrf_token %}
+
+      <div class="col-md-3">
+        <label class="form-label">Tipo de documento</label>
+        <select name="tipo" class="form-select" required>
+          <option value="">Seleccionar…</option>
+          <option value="escritura">Escritura</option>
+          <option value="nota_simple">Nota simple</option>
+          <option value="contrato">Contrato</option>
+          <option value="tasacion">Tasación</option>
+          <option value="otros">Otros</option>
+        </select>
+      </div>
+
+      <div class="col-md-4">
+        <label class="form-label">Archivo</label>
+        <input type="file" name="archivo" class="form-control" required>
+      </div>
+
+      <div class="col-md-2">
+        <label class="form-label">Fecha documento</label>
+        <input type="date" name="fecha_documento" class="form-control">
+      </div>
+
+      <div class="col-md-3">
+        <label class="form-label">Observaciones</label>
+        <input type="text" name="observaciones" class="form-control">
+      </div>
+
+      <div class="col-12 text-end">
+        <button class="btn btn-primary">
+          Añadir documento
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- LISTADO -->
+  <div class="p-4">
+    <h5 class="mb-3">Documentos asociados</h5>
+
+    {% if documentos %}
+      <div class="table-responsive">
+        <table class="table table-hover align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>Tipo</th>
+              <th>Documento</th>
+              <th>Fecha</th>
+              <th>Observaciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for doc in documentos %}
+              <tr>
+                <td class="text-capitalize">{{ doc.tipo|replace:"_"," " }}</td>
+                <td>
+                  <a href="{{ doc.archivo.url }}" target="_blank">
+                    {{ doc.archivo.name|cut:"proyectos_documentos/" }}
+                  </a>
+                </td>
+                <td>
+                  {{ doc.fecha_documento|default:"—" }}
+                </td>
+                <td class="text-muted">
+                  {{ doc.observaciones|default:"—" }}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="alert alert-secondary">
+        No hay documentación subida todavía.
+      </div>
+    {% endif %}
+  </div>
+
+</div>
+
+{% endblock %}
