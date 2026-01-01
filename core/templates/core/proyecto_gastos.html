@@ -81,84 +81,6 @@
 
     <hr>
 
-    <!-- BLOQUE D — Gastos de obra -->
-    <div class="card shadow-sm mb-4">
-      <div class="card-header bg-light fw-semibold">
-        Gastos de obra / adecuación
-      </div>
-      <div class="card-body">
-        <div class="row g-3">
-
-          <div class="col-md-6">
-            <div class="d-flex align-items-center justify-content-between gap-2 p-2 border rounded">
-              <span>Reforma / obra</span>
-              <input type="number" step="0.01" class="form-control text-end" name="obra_reforma" value="{{ gastos_base.obra_reforma|default_if_none:'' }}">
-              <select name="estado_obra_reforma" class="form-select form-select-sm" style="width: auto;">
-                <option value="estimado" {% if gastos_base.estado_obra_reforma == "estimado" %}selected{% endif %}>estimado</option>
-                <option value="real" {% if gastos_base.estado_obra_reforma == "real" %}selected{% endif %}>real</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="col-md-6">
-            <div class="d-flex align-items-center justify-content-between gap-2 p-2 border rounded">
-              <span>Materiales</span>
-              <input type="number" step="0.01" class="form-control text-end" name="obra_materiales" value="{{ gastos_base.obra_materiales|default_if_none:'' }}">
-              <select name="estado_obra_materiales" class="form-select form-select-sm" style="width: auto;">
-                <option value="estimado" {% if gastos_base.estado_obra_materiales == "estimado" %}selected{% endif %}>estimado</option>
-                <option value="real" {% if gastos_base.estado_obra_materiales == "real" %}selected{% endif %}>real</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="col-md-6">
-            <div class="d-flex align-items-center justify-content-between gap-2 p-2 border rounded">
-              <span>Mano de obra</span>
-              <input type="number" step="0.01" class="form-control text-end" name="obra_mano_obra" value="{{ gastos_base.obra_mano_obra|default_if_none:'' }}">
-              <select name="estado_obra_mano_obra" class="form-select form-select-sm" style="width: auto;">
-                <option value="estimado" {% if gastos_base.estado_obra_mano_obra == "estimado" %}selected{% endif %}>estimado</option>
-                <option value="real" {% if gastos_base.estado_obra_mano_obra == "real" %}selected{% endif %}>real</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="col-md-6">
-            <div class="d-flex align-items-center justify-content-between gap-2 p-2 border rounded">
-              <span>Técnico / Arquitecto</span>
-              <input type="number" step="0.01" class="form-control text-end" name="obra_tecnico" value="{{ gastos_base.obra_tecnico|default_if_none:'' }}">
-              <select name="estado_obra_tecnico" class="form-select form-select-sm" style="width: auto;">
-                <option value="estimado" {% if gastos_base.estado_obra_tecnico == "estimado" %}selected{% endif %}>estimado</option>
-                <option value="real" {% if gastos_base.estado_obra_tecnico == "real" %}selected{% endif %}>real</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="col-md-6">
-            <div class="d-flex align-items-center justify-content-between gap-2 p-2 border rounded">
-              <span>Licencias / tasas</span>
-              <input type="number" step="0.01" class="form-control text-end" name="obra_licencias" value="{{ gastos_base.obra_licencias|default_if_none:'' }}">
-              <select name="estado_obra_licencias" class="form-select form-select-sm" style="width: auto;">
-                <option value="estimado" {% if gastos_base.estado_obra_licencias == "estimado" %}selected{% endif %}>estimado</option>
-                <option value="real" {% if gastos_base.estado_obra_licencias == "real" %}selected{% endif %}>real</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="col-md-6">
-            <div class="d-flex align-items-center justify-content-between gap-2 p-2 border rounded">
-              <span>Imprevistos / contingencia</span>
-              <input type="number" step="0.01" class="form-control text-end" name="obra_contingencia" value="{{ gastos_base.obra_contingencia|default_if_none:'' }}">
-              <select name="estado_obra_contingencia" class="form-select form-select-sm" style="width: auto;">
-                <option value="estimado" {% if gastos_base.estado_obra_contingencia == "estimado" %}selected{% endif %}>estimado</option>
-                <option value="real" {% if gastos_base.estado_obra_contingencia == "real" %}selected{% endif %}>real</option>
-              </select>
-            </div>
-          </div>
-
-        </div>
-      </div>
-    </div>
-
     <!-- BLOQUE A — Gastos de adquisición -->
     <div class="card shadow-sm mb-4">
       <div class="card-header bg-light fw-semibold">
@@ -300,6 +222,85 @@
         </div>
       </div>
     </div>
+
+    <!-- BLOQUE D — Gastos de obra -->
+    <div class="card shadow-sm mb-4">
+      <div class="card-header bg-light fw-semibold">
+        Gastos de obra / adecuación
+      </div>
+      <div class="card-body">
+        <div class="row g-3">
+
+          <div class="col-md-6">
+            <div class="d-flex align-items-center justify-content-between gap-2 p-2 border rounded">
+              <span>Reforma / obra</span>
+              <input type="number" step="0.01" class="form-control text-end" name="obra_reforma" value="{{ gastos_base.obra_reforma|default_if_none:'' }}">
+              <select name="estado_obra_reforma" class="form-select form-select-sm" style="width: auto;">
+                <option value="estimado" {% if gastos_base.estado_obra_reforma == "estimado" %}selected{% endif %}>estimado</option>
+                <option value="real" {% if gastos_base.estado_obra_reforma == "real" %}selected{% endif %}>real</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="col-md-6">
+            <div class="d-flex align-items-center justify-content-between gap-2 p-2 border rounded">
+              <span>Materiales</span>
+              <input type="number" step="0.01" class="form-control text-end" name="obra_materiales" value="{{ gastos_base.obra_materiales|default_if_none:'' }}">
+              <select name="estado_obra_materiales" class="form-select form-select-sm" style="width: auto;">
+                <option value="estimado" {% if gastos_base.estado_obra_materiales == "estimado" %}selected{% endif %}>estimado</option>
+                <option value="real" {% if gastos_base.estado_obra_materiales == "real" %}selected{% endif %}>real</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="col-md-6">
+            <div class="d-flex align-items-center justify-content-between gap-2 p-2 border rounded">
+              <span>Mano de obra</span>
+              <input type="number" step="0.01" class="form-control text-end" name="obra_mano_obra" value="{{ gastos_base.obra_mano_obra|default_if_none:'' }}">
+              <select name="estado_obra_mano_obra" class="form-select form-select-sm" style="width: auto;">
+                <option value="estimado" {% if gastos_base.estado_obra_mano_obra == "estimado" %}selected{% endif %}>estimado</option>
+                <option value="real" {% if gastos_base.estado_obra_mano_obra == "real" %}selected{% endif %}>real</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="col-md-6">
+            <div class="d-flex align-items-center justify-content-between gap-2 p-2 border rounded">
+              <span>Técnico / Arquitecto</span>
+              <input type="number" step="0.01" class="form-control text-end" name="obra_tecnico" value="{{ gastos_base.obra_tecnico|default_if_none:'' }}">
+              <select name="estado_obra_tecnico" class="form-select form-select-sm" style="width: auto;">
+                <option value="estimado" {% if gastos_base.estado_obra_tecnico == "estimado" %}selected{% endif %}>estimado</option>
+                <option value="real" {% if gastos_base.estado_obra_tecnico == "real" %}selected{% endif %}>real</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="col-md-6">
+            <div class="d-flex align-items-center justify-content-between gap-2 p-2 border rounded">
+              <span>Licencias / tasas</span>
+              <input type="number" step="0.01" class="form-control text-end" name="obra_licencias" value="{{ gastos_base.obra_licencias|default_if_none:'' }}">
+              <select name="estado_obra_licencias" class="form-select form-select-sm" style="width: auto;">
+                <option value="estimado" {% if gastos_base.estado_obra_licencias == "estimado" %}selected{% endif %}>estimado</option>
+                <option value="real" {% if gastos_base.estado_obra_licencias == "real" %}selected{% endif %}>real</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="col-md-6">
+            <div class="d-flex align-items-center justify-content-between gap-2 p-2 border rounded">
+              <span>Imprevistos / contingencia</span>
+              <input type="number" step="0.01" class="form-control text-end" name="obra_contingencia" value="{{ gastos_base.obra_contingencia|default_if_none:'' }}">
+              <select name="estado_obra_contingencia" class="form-select form-select-sm" style="width: auto;">
+                <option value="estimado" {% if gastos_base.estado_obra_contingencia == "estimado" %}selected{% endif %}>estimado</option>
+                <option value="real" {% if gastos_base.estado_obra_contingencia == "real" %}selected{% endif %}>real</option>
+              </select>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
 
     <!-- BLOQUE C — Gastos de comercialización y gestión -->
     <div class="card shadow-sm mb-4">
