@@ -65,7 +65,6 @@ def f(x):
         return 0.0
 
 from django.shortcuts import render, redirect
-from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.csrf import csrf_protect
 from django.views.decorators.csrf import ensure_csrf_cookie
 from decimal import Decimal
@@ -804,92 +803,25 @@ def proyecto_documentos(request, proyecto_id):
     }
     return render(request, "core/proyecto_documentos.html", contexto)
 
-# === Autoguardado AJAX genérico para proyecto_gastos ===
-from django.views.decorators.http import require_POST
-
-from django.views.decorators.csrf import csrf_protect
-
-from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_POST
-import json
-from decimal import Decimal
-
-@csrf_exempt
-@require_POST
-def proyecto_gastos_autoguardado(request, proyecto_id):
-    proyecto = get_object_or_404(Proyecto, id=proyecto_id)
-    from .models import DatosEconomicosProyecto
-    datos, _ = DatosEconomicosProyecto.objects.get_or_create(proyecto=proyecto)
-
-    # Accept JSON (fetch) or form POST
-    try:
-        payload = json.loads(request.body.decode("utf-8")) if request.body else request.POST
-    except Exception:
-        payload = request.POST
-
-    # Whitelist of allowed numeric fields (single source of truth)
-    CAMPOS_NUMERICOS = {
-        "precio_compra_inmueble",
-        "notaria",
-        "registro",
-        "itp",
-        "otros_gastos_compra",
-        "ibi",
-        "limpieza_inicial",
-        "comunidad",
-        "seguros",
-        "suministros",
-        "plusvalia",
-        "inmobiliaria",
-        # Obras
-        "obra_demoliciones",
-        "obra_albanileria",
-        "obra_fontaneria",
-        "obra_electricidad",
-        "obra_carpinteria_interior",
-        "obra_carpinteria_exterior",
-        "obra_cocina",
-        "obra_banos",
-        "obra_pintura",
-        "obra_otros",
-        # Ingresos / transmisión
-        "venta_estimada",
-    }
-
-    changed_fields = []
-
-    for campo in CAMPOS_NUMERICOS:
-        if campo in payload:
-            raw = payload.get(campo)
-            valor = None if raw in (None, "") else parse_euro(raw)
-            if getattr(datos, campo, None) != valor:
-                setattr(datos, campo, valor)
-                changed_fields.append(campo)
-
-    if changed_fields:
-        datos.save(update_fields=changed_fields)
-
-    return JsonResponse({"ok": True, "updated": changed_fields})
 
 # === Proyecto Gastos View ===
 
-from django.views.decorators.csrf import ensure_csrf_cookie
+from django.views.decorators.csrf import csrf_protect
+from django.db.models import Sum
+from decimal import Decimal
 
-@ensure_csrf_cookie
+@csrf_protect
 def proyecto_gastos(request, proyecto_id):
     proyecto = get_object_or_404(Proyecto, id=proyecto_id)
-    from .models import DatosEconomicosProyecto
-    datos_economicos, _ = DatosEconomicosProyecto.objects.get_or_create(
-        proyecto=proyecto
-    )
-    from django.db.models import Sum
-    from decimal import Decimal
 
-    # =========================
-    # CABECERA ECONÓMICA ÚNICA (TRAZABLE) – PASO 1
-    # =========================
+    # Paso 2: Manejo de POST para persistencia directa en Proyecto
+    if request.method == "POST":
+        proyecto.precio_compra_inmueble = parse_euro(request.POST.get("precio_compra_inmueble"))
+        proyecto.venta_estimada = parse_euro(request.POST.get("venta_estimada"))
+        proyecto.save()
 
-    # Precio de escritura (defensivo)
+    # Paso 3: Cards y cálculos SOLO desde BD
+    # Precio de adquisición: precio_compra_inmueble, fallback a precio_propiedad
     precio_adquisicion = (
         safe_attr(proyecto, "precio_compra_inmueble")
         or safe_attr(proyecto, "precio_propiedad")
@@ -898,24 +830,14 @@ def proyecto_gastos(request, proyecto_id):
     # Valor de transmisión (estimado hasta venta real)
     valor_transmision = safe_attr(proyecto, "venta_estimada")
 
-    # Fuente única de verdad para gastos: GastoProyecto
-    gastos_qs = GastoProyecto.objects.filter(proyecto=proyecto)
-
-
-    # =========================
-    # UNIFICADO: RECÁLCULO ECONÓMICO FINAL
-    # =========================
+    # Gastos: fuente única GastoProyecto
     gastos_qs = GastoProyecto.objects.filter(proyecto=proyecto)
     gastos_estimados = gastos_qs.filter(estado="estimado").aggregate(total=Sum("importe"))["total"] or Decimal("0")
     gastos_reales = gastos_qs.filter(estado="real").aggregate(total=Sum("importe"))["total"] or Decimal("0")
     total_gastos = gastos_estimados + gastos_reales
-    precio_adquisicion = safe_attr(proyecto, "precio_compra_inmueble") or safe_attr(proyecto, "precio_propiedad")
-    valor_transmision = safe_attr(proyecto, "venta_estimada")
     valor_adquisicion_total = precio_adquisicion + total_gastos
 
-    # =========================
-    # LECTURA DE GASTOS (ÚNICA FUENTE)
-    # =========================
+    # LECTURA DE GASTOS (listado)
     gastos = GastoProyecto.objects.filter(proyecto=proyecto).order_by("-fecha")
     gastos_list = []
     for gasto in gastos:
@@ -926,15 +848,11 @@ def proyecto_gastos(request, proyecto_id):
             "es_obra": gasto.categoria == "obra",
         })
 
-    # =========================
     # INGRESOS
-    # =========================
     ingresos = IngresoProyecto.objects.filter(proyecto=proyecto)
     total_ingresos = ingresos.aggregate(total=Sum("importe"))["total"] or Decimal("0")
 
-    # =========================
     # RESULTADO ECONÓMICO REAL
-    # =========================
     inversion_total = valor_adquisicion_total
     beneficio_bruto = total_ingresos - valor_adquisicion_total
     proyecto.beneficio_bruto = beneficio_bruto
