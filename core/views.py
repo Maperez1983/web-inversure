@@ -841,6 +841,7 @@ def proyecto_gastos(request, proyecto_id):
                 proyecto.save(update_fields=["estado"])
             return redirect("core:proyecto_gastos", proyecto_id=proyecto.id)
 
+        # Guardado sin redirect para preservar inputs y permitir recalculo en vivo
         if tipo_form == "adquisicion":
             proyecto.precio_compra_inmueble = parse_euro(request.POST.get("precio_compra_inmueble"))
             proyecto.notaria = parse_euro(request.POST.get("notaria"))
@@ -859,7 +860,7 @@ def proyecto_gastos(request, proyecto_id):
                 "limpieza_inicial",
             ])
             messages.success(request, "Cambios económicos guardados correctamente.")
-            # NO redirect, continuar hasta render final
+            # No redirect, no context wipe; continue to final render
 
         if tipo_form == "ingresos":
             IngresoProyecto.objects.create(
@@ -880,7 +881,7 @@ def proyecto_gastos(request, proyecto_id):
                 if gasto:
                     gasto.estado = estado
                     gasto.save(update_fields=["estado"])
-            # Renderizar la vista de nuevo (sin redirect)
+            # No redirect, continue to final render
 
     # =========================
     # UNIFICADO: RECÁLCULO ECONÓMICO FINAL
