@@ -828,57 +828,6 @@ def proyecto_gastos(request, proyecto_id):
     # Fuente única de verdad para gastos: GastoProyecto
     gastos_qs = GastoProyecto.objects.filter(proyecto=proyecto)
 
-    # === MATERIALIZACIÓN AUTOMÁTICA DE GASTOS DE OBRA (ESTIMADOS) ===
-    OBRA_CAMPOS = [
-        ("Demoliciones", "obra_demoliciones"),
-        ("Albañilería", "obra_albanileria"),
-        ("Fontanería", "obra_fontaneria"),
-        ("Electricidad", "obra_electricidad"),
-        ("Carpintería interior", "obra_carpinteria_interior"),
-        ("Carpintería exterior", "obra_carpinteria_exterior"),
-        ("Cocina", "obra_cocina"),
-        ("Baños", "obra_banos"),
-        ("Pintura", "obra_pintura"),
-        ("Otros obra", "obra_otros"),
-    ]
-    for nombre_legible, campo in OBRA_CAMPOS:
-        valor = getattr(proyecto, campo, None)
-        if valor and valor > 0:
-            existe = GastoProyecto.objects.filter(
-                proyecto=proyecto,
-                concepto=nombre_legible,
-                categoria="obra"
-            ).exists()
-            if not existe:
-                try:
-                    GastoProyecto.objects.create(
-                        proyecto=proyecto,
-                        concepto=nombre_legible,
-                        categoria="obra",
-                        importe=valor,
-                        estado="estimado",
-                        imputable_inversores=True,
-                    )
-                except Exception:
-                    pass
-    # Re-obtener queryset actualizado tras posible inserción
-    gastos_qs = GastoProyecto.objects.filter(proyecto=proyecto)
-
-    # Ahora los sumatorios SOLO filtran por estado, no por categoría
-    gastos_estimados = gastos_qs.filter(
-        estado="estimado"
-    ).aggregate(total=Sum("importe"))["total"] or Decimal("0")
-
-    gastos_reales = gastos_qs.filter(
-        estado="real"
-    ).aggregate(total=Sum("importe"))["total"] or Decimal("0")
-
-    # Total de gastos (estimados + reales)
-    total_gastos = gastos_estimados + gastos_reales
-
-    # Valor de adquisición TOTAL (precio escritura + todos los gastos)
-    valor_adquisicion_total = precio_adquisicion + total_gastos
-
     # =========================
     # POST: CAMBIOS DE ESTADO / ADQUISICIÓN / INGRESOS
     # =========================
@@ -910,6 +859,7 @@ def proyecto_gastos(request, proyecto_id):
                 "limpieza_inicial",
             ])
             messages.success(request, "Cambios económicos guardados correctamente.")
+            # NO redirect, continuar hasta render final
 
         if tipo_form == "ingresos":
             IngresoProyecto.objects.create(
@@ -933,6 +883,17 @@ def proyecto_gastos(request, proyecto_id):
             # Renderizar la vista de nuevo (sin redirect)
 
     # =========================
+    # UNIFICADO: RECÁLCULO ECONÓMICO FINAL
+    # =========================
+    gastos_qs = GastoProyecto.objects.filter(proyecto=proyecto)
+    gastos_estimados = gastos_qs.filter(estado="estimado").aggregate(total=Sum("importe"))["total"] or Decimal("0")
+    gastos_reales = gastos_qs.filter(estado="real").aggregate(total=Sum("importe"))["total"] or Decimal("0")
+    total_gastos = gastos_estimados + gastos_reales
+    precio_adquisicion = safe_attr(proyecto, "precio_compra_inmueble")
+    valor_transmision = safe_attr(proyecto, "venta_estimada")
+    valor_adquisicion_total = precio_adquisicion + total_gastos
+
+    # =========================
     # LECTURA DE GASTOS (ÚNICA FUENTE)
     # =========================
     gastos = GastoProyecto.objects.filter(proyecto=proyecto).order_by("-fecha")
@@ -954,15 +915,10 @@ def proyecto_gastos(request, proyecto_id):
     # =========================
     # RESULTADO ECONÓMICO REAL
     # =========================
-    # Recalcular siempre los importes de cabecera a partir de estos valores:
-    # valor_adquisicion_total = precio_compra_inmueble + total_gastos
-    # beneficio_bruto = total_ingresos - valor_adquisicion_total
     inversion_total = valor_adquisicion_total
     beneficio_bruto = total_ingresos - valor_adquisicion_total
-
     proyecto.beneficio_bruto = beneficio_bruto
     resultado = calcular_resultado_economico_proyecto(proyecto)
-
     beneficio_neto = resultado.get("beneficio_neto", Decimal("0"))
     roi_real = (beneficio_neto / inversion_total * Decimal("100")) if inversion_total > 0 else Decimal("0")
 
