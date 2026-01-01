@@ -505,8 +505,14 @@ def participacion_create(request, proyecto_id):
                 importe_val = 0
 
             porcentaje = 0
+            # Use precio_propiedad as fallback if precio_compra_inmueble is not set or zero
+            precio_base = None
             if proyecto.precio_compra_inmueble and proyecto.precio_compra_inmueble > 0:
-                porcentaje = (importe_val / proyecto.precio_compra_inmueble) * 100
+                precio_base = proyecto.precio_compra_inmueble
+            elif hasattr(proyecto, "precio_propiedad") and proyecto.precio_propiedad and proyecto.precio_propiedad > 0:
+                precio_base = proyecto.precio_propiedad
+            if precio_base and precio_base > 0:
+                porcentaje = (importe_val / precio_base) * 100
 
             Participacion.objects.create(
                 proyecto=proyecto,
