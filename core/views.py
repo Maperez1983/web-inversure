@@ -1,6 +1,16 @@
 # =========================
 # LÓGICA ECONÓMICA CENTRAL DEL PROYECTO (G3.2)
 # =========================
+from decimal import Decimal
+
+# Defensive attribute getter for numerics
+def safe_attr(obj, name, default=Decimal("0")):
+    try:
+        val = getattr(obj, name, default)
+        return default if val is None else val
+    except Exception:
+        return default
+
 def calcular_resultado_economico_proyecto(proyecto):
     """
     Cálculo económico central del proyecto (G3.2)
@@ -8,7 +18,6 @@ def calcular_resultado_economico_proyecto(proyecto):
     - Todo se calcula sobre BENEFICIO BRUTO
     - Solo se aplican comisiones si el beneficio bruto es positivo
     """
-
     beneficio_bruto = proyecto.beneficio_bruto or Decimal("0")
 
     # Porcentajes fijos
@@ -16,7 +25,7 @@ def calcular_resultado_economico_proyecto(proyecto):
     pct_administracion = Decimal("0.05")
 
     # Porcentaje gestión Inversure (30–40 %)
-    pct_gestion = proyecto.pct_gestion_inversure or Decimal("0.30")
+    pct_gestion = safe_attr(proyecto, "pct_gestion_inversure", Decimal("0.30"))
 
     if beneficio_bruto <= 0:
         return {
@@ -810,11 +819,11 @@ def proyecto_gastos(request, proyecto_id):
         )
 
     gastos_base = {
-        "precio_escritura": proyecto.precio_compra_inmueble or Decimal("0"),
-        "notaria": proyecto.notaria or Decimal("0"),
-        "itp": proyecto.itp or Decimal("0"),
-        "registro": proyecto.registro or Decimal("0"),
-        "ibi": proyecto.ibi or Decimal("0"),
+        "precio_escritura": safe_attr(proyecto, "precio_compra_inmueble"),
+        "notaria": safe_attr(proyecto, "notaria"),
+        "itp": safe_attr(proyecto, "itp"),
+        "registro": safe_attr(proyecto, "registro"),
+        "ibi": safe_attr(proyecto, "ibi"),
 
         # Servicios base (siempre como gastos, nunca como campos del proyecto)
         "alarma": gasto_base("alarma"),
@@ -822,9 +831,9 @@ def proyecto_gastos(request, proyecto_id):
         "limpieza_vaciado": gasto_base("limpieza / vaciado"),
 
         # Comisiones configurables
-        "comision_inversure_pct": getattr(datos_economicos, "comision_inversure_pct", Decimal("0")),
-        "administracion_pct": getattr(datos_economicos, "administracion_pct", Decimal("0")),
-        "comercializacion_pct": getattr(datos_economicos, "comercializacion_pct", Decimal("0")),
+        "comision_inversure_pct": safe_attr(datos_economicos, "comision_inversure_pct"),
+        "administracion_pct": safe_attr(datos_economicos, "administracion_pct"),
+        "comercializacion_pct": safe_attr(datos_economicos, "comercializacion_pct"),
     }
 
 
@@ -936,7 +945,7 @@ def proyecto_gastos(request, proyecto_id):
     gastos_otros = suma_gastos("otros")
 
     # 2. Inversión total del proyecto
-    precio_compra = proyecto.precio_compra_inmueble or Decimal("0")
+    precio_compra = safe_attr(proyecto, "precio_compra_inmueble")
 
     inversion_total = (
         precio_compra
@@ -966,14 +975,14 @@ def proyecto_gastos(request, proyecto_id):
     # GASTOS ORDINARIOS (FIJOS)
     # =========================
     gastos_ordinarios = (
-        (proyecto.precio_compra_inmueble or Decimal("0"))
-        + (proyecto.notaria or Decimal("0"))
-        + (proyecto.itp or Decimal("0"))
-        + (proyecto.registro or Decimal("0"))
-        + (proyecto.otros_gastos_compra or Decimal("0"))
-        + (proyecto.ibi or Decimal("0"))
-        + (proyecto.alarma or Decimal("0"))
-        + (proyecto.limpieza_inicial or Decimal("0"))
+        safe_attr(proyecto, "precio_compra_inmueble")
+        + safe_attr(proyecto, "notaria")
+        + safe_attr(proyecto, "itp")
+        + safe_attr(proyecto, "registro")
+        + safe_attr(proyecto, "otros_gastos_compra")
+        + safe_attr(proyecto, "ibi")
+        + safe_attr(proyecto, "alarma")
+        + safe_attr(proyecto, "limpieza_inicial")
         + Decimal("0")
     )
 
