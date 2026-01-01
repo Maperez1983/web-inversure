@@ -816,21 +816,30 @@ def proyecto_gastos(request, proyecto_id):
     from decimal import Decimal
 
     # =========================
-    # CABECERA ECONÓMICA ÚNICA (TRAZABLE) - REFACTORIZADA
+    # CABECERA ECONÓMICA ÚNICA (TRAZABLE) – PASO 1
     # =========================
+
+    # Precio de escritura (defensivo)
     precio_adquisicion = safe_attr(proyecto, "precio_compra_inmueble")
+
+    # Valor de transmisión (estimado hasta venta real)
     valor_transmision = safe_attr(proyecto, "venta_estimada")
 
-    # Nueva fuente de verdad para gastos: solo GastoProyecto, diferenciando por estado
+    # Fuente única de verdad para gastos: GastoProyecto
     gastos_qs = GastoProyecto.objects.filter(proyecto=proyecto)
-    gastos_estimados = gastos_qs.filter(estado="estimado").aggregate(
-        total=Sum("importe")
-    )["total"] or Decimal("0")
-    gastos_reales = gastos_qs.filter(estado="real").aggregate(
-        total=Sum("importe")
-    )["total"] or Decimal("0")
+
+    gastos_estimados = gastos_qs.filter(
+        estado="estimado"
+    ).aggregate(total=Sum("importe"))["total"] or Decimal("0")
+
+    gastos_reales = gastos_qs.filter(
+        estado="real"
+    ).aggregate(total=Sum("importe"))["total"] or Decimal("0")
+
+    # Total de gastos (estimados + reales)
     total_gastos = gastos_estimados + gastos_reales
 
+    # Valor de adquisición TOTAL (precio escritura + todos los gastos)
     valor_adquisicion_total = precio_adquisicion + total_gastos
 
     # =========================
@@ -905,7 +914,6 @@ def proyecto_gastos(request, proyecto_id):
     beneficio_neto = resultado.get("beneficio_neto", Decimal("0"))
     roi_real = (beneficio_neto / inversion_total * Decimal("100")) if inversion_total > 0 else Decimal("0")
 
-    # Nueva definición de cabecera_economica
     cabecera_economica = {
         "precio_adquisicion": precio_adquisicion,
         "gastos_estimados": gastos_estimados,
