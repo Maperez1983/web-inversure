@@ -964,50 +964,36 @@ def proyecto_gastos(request, proyecto_id):
     )["total"] or Decimal("0")
 
     # =========================
-    # C2.1 – CONSOLIDACIÓN ECONÓMICA AUTOMÁTICA
+    # INVERSIÓN TOTAL CONSOLIDADA DESDE CABECERA ECONÓMICA
     # =========================
-
-    # 1. Gastos clasificados por tipo
-    def suma_gastos(tipo):
-        return (
-            gastos.filter(categoria=tipo)
-            .aggregate(total=Sum("importe"))["total"]
-            or Decimal("0")
-        )
-
-    gastos_adquisicion = suma_gastos("adquisicion")
-    gastos_reforma = suma_gastos("reforma")
-    gastos_operativos = suma_gastos("operativos")
-    gastos_financieros = suma_gastos("financieros")
-    gastos_legales = suma_gastos("legales")
-    gastos_venta = suma_gastos("venta")
-    gastos_otros = suma_gastos("otros")
-
-    # 2. Inversión total del proyecto
-    precio_compra = safe_attr(proyecto, "precio_compra_inmueble")
-
-    inversion_total = (
-        precio_compra
-        + gastos_adquisicion
-        + gastos_reforma
-        + gastos_operativos
-        + gastos_financieros
-        + gastos_legales
-        + gastos_otros
+    # Obtener precio de adquisición y total de gastos desde cabecera económica
+    precio_adquisicion = safe_attr(proyecto, "precio_compra_inmueble")
+    gastos_estimados = (
+        safe_attr(proyecto, "notaria")
+        + safe_attr(proyecto, "registro")
+        + safe_attr(proyecto, "itp")
+        + safe_attr(proyecto, "otros_gastos_compra")
+        + safe_attr(proyecto, "ibi")
+        + safe_attr(proyecto, "limpieza_inicial")
     )
+    gastos_reales = (
+        GastoProyecto.objects.filter(proyecto=proyecto)
+        .aggregate(total=Sum("importe"))["total"]
+        or Decimal("0")
+    )
+    total_gastos_cabecera = gastos_estimados + gastos_reales
+    inversion_total = precio_adquisicion + total_gastos_cabecera
 
     # =========================
-    # C2.3.3 – RESULTADO REAL USANDO INGRESOS NORMALIZADOS
+    # C2.3.3 – RESULTADO REAL USANDO INGRESOS NORMALIZADOS (recalculado)
     # =========================
-
+    # Cálculo de beneficio bruto real y resultado económico
+    beneficio_bruto_real = total_ingresos - inversion_total
+    # Pasa el beneficio bruto calculado al modelo temporalmente para el cálculo
+    proyecto.beneficio_bruto = beneficio_bruto_real
     resultado = calcular_resultado_economico_proyecto(proyecto)
-
     beneficio_neto = resultado["beneficio_neto"]
-
-    roi_real = (
-        (beneficio_neto / inversion_total * Decimal("100"))
-        if inversion_total > 0 else Decimal("0")
-    )
+    roi_real = (beneficio_neto / inversion_total * Decimal("100")) if inversion_total > 0 else Decimal("0")
 
 
     # =========================
@@ -1078,20 +1064,11 @@ def proyecto_gastos(request, proyecto_id):
 
     contexto = {
         "proyecto": proyecto,
-        "gastos": gastos,
-        "gastos_base": gastos_base,
-        "gastos_extraordinarios": gastos_extraordinarios,
-        "datos_economicos": datos_economicos,
-        "gastos_ordinarios": gastos_ordinarios,
-        "gastos_extraordinarios_total": total_gastos_extraordinarios,
-        "total_gastos": total_gastos_proyecto,
         "cabecera_economica": cabecera_economica,
-        # NUEVAS variables para el contexto:
-        "gastos_reales_list": gastos_reales_list,
-        "gastos_estimados_list": gastos_estimados_list,
         "total_gastos_estimados": total_gastos_estimados,
         "total_gastos_reales": total_gastos_reales,
         "total_gastos_proyecto": total_gastos_proyecto,
+        "inversion_total": inversion_total,
     }
 
     return render(
