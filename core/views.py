@@ -809,6 +809,9 @@ from django.views.decorators.http import require_POST
 
 from django.views.decorators.csrf import csrf_protect
 
+from django.views.decorators.csrf import csrf_protect
+from django.views.decorators.http import require_POST
+
 @csrf_protect
 @require_POST
 def proyecto_gastos_autoguardado(request, proyecto_id):
@@ -842,6 +845,8 @@ def proyecto_gastos_autoguardado(request, proyecto_id):
     return JsonResponse({"ok": True})
 
 # === Proyecto Gastos View ===
+
+from django.views.decorators.csrf import ensure_csrf_cookie
 
 @ensure_csrf_cookie
 def proyecto_gastos(request, proyecto_id):
