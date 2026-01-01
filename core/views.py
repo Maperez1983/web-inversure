@@ -876,9 +876,6 @@ def proyecto_gastos_autoguardado(request, proyecto_id):
 from django.views.decorators.csrf import ensure_csrf_cookie
 
 @ensure_csrf_cookie
-from django.views.decorators.csrf import ensure_csrf_cookie
-
-@ensure_csrf_cookie
 def proyecto_gastos(request, proyecto_id):
     proyecto = get_object_or_404(Proyecto, id=proyecto_id)
     from .models import DatosEconomicosProyecto
@@ -904,60 +901,6 @@ def proyecto_gastos(request, proyecto_id):
     # Fuente única de verdad para gastos: GastoProyecto
     gastos_qs = GastoProyecto.objects.filter(proyecto=proyecto)
 
-    # =========================
-    # POST: CAMBIOS DE ESTADO / ADQUISICIÓN / INGRESOS
-    # =========================
-    if request.method == "POST":
-        tipo_form = request.POST.get("form_tipo")
-
-        if tipo_form == "estado":
-            estado_nuevo = request.POST.get("estado")
-            if estado_nuevo:
-                proyecto.estado = estado_nuevo
-                proyecto.save(update_fields=["estado"])
-            return redirect("core:proyecto_gastos", proyecto_id=proyecto.id)
-
-        # Guardado sin redirect para preservar inputs y permitir recalculo en vivo
-        if tipo_form == "adquisicion":
-            proyecto.precio_compra_inmueble = parse_euro(request.POST.get("precio_compra_inmueble"))
-            proyecto.notaria = parse_euro(request.POST.get("notaria"))
-            proyecto.registro = parse_euro(request.POST.get("registro"))
-            proyecto.itp = parse_euro(request.POST.get("itp"))
-            proyecto.otros_gastos_compra = parse_euro(request.POST.get("otros_gastos_compra"))
-            proyecto.ibi = parse_euro(request.POST.get("ibi"))
-            proyecto.limpieza_inicial = parse_euro(request.POST.get("limpieza_inicial"))
-            proyecto.save(update_fields=[
-                "precio_compra_inmueble",
-                "notaria",
-                "registro",
-                "itp",
-                "otros_gastos_compra",
-                "ibi",
-                "limpieza_inicial",
-            ])
-            messages.success(request, "Cambios económicos guardados correctamente.")
-            # No redirect, no context wipe; continue to final render
-
-        if tipo_form == "ingresos":
-            IngresoProyecto.objects.create(
-                proyecto=proyecto,
-                fecha=request.POST.get("fecha_ingreso"),
-                concepto=request.POST.get("concepto"),
-                importe=parse_euro(request.POST.get("importe_ingreso")),
-                imputable_inversores=True,
-            )
-            return redirect("core:proyecto_gastos", proyecto_id=proyecto.id)
-
-        # === CAMBIO DE ESTADO ESTIMADO/REAL PARA GASTOS DE OBRA ===
-        if tipo_form == "gasto_estado":
-            gasto_id = request.POST.get("gasto_id")
-            estado = request.POST.get("estado")
-            if gasto_id and estado in ("estimado", "real"):
-                gasto = GastoProyecto.objects.filter(id=gasto_id, proyecto=proyecto).first()
-                if gasto:
-                    gasto.estado = estado
-                    gasto.save(update_fields=["estado"])
-            # No redirect, continue to final render
 
     # =========================
     # UNIFICADO: RECÁLCULO ECONÓMICO FINAL
