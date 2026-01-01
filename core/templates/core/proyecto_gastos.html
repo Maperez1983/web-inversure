@@ -4,11 +4,13 @@
 {% block content %}
 <div class="container-fluid">
 
-  <!-- CABECERA -->
+  <!-- CABECERA: Identidad del Proyecto -->
   <div class="mb-4">
-    <h3 class="fw-semibold mb-1">Datos económicos del proyecto</h3>
+    <h3 class="fw-semibold mb-1">Proyecto · {{ proyecto.nombre }}</h3>
     <p class="text-muted mb-0">
-      Control y seguimiento del tráfico económico de la operación
+      {% if proyecto.direccion %}
+        {{ proyecto.direccion }}
+      {% endif %}
     </p>
   </div>
 
@@ -16,22 +18,9 @@
     {% csrf_token %}
     <input type="hidden" name="form_tipo" value="datos_economicos">
 
-    <!-- BLOQUE: Precio de escritura -->
-    <!-- Este bloque contiene el precio escriturado de adquisición, base de cálculo del proyecto -->
-    <div class="card shadow-sm mb-4">
-      <div class="card-body">
-        <label for="precio_escritura" class="form-label fw-semibold">Precio de escritura</label>
-        <div class="input-group">
-          <input type="number" step="0.01" class="form-control" id="precio_escritura" name="precio_escritura" value="{{ datos_economicos.precio_escritura|default_if_none:''|floatformat:2 }}">
-          <span class="input-group-text">€</span>
-        </div>
-        <div class="form-text">Importe escriturado de adquisición. Base de cálculo del proyecto.</div>
-      </div>
-    </div>
 
     <!-- CABECERA ECONÓMICA DEL PROYECTO -->
     <div class="row g-3 mb-4">
-
       <div class="col-md-3">
         <div class="card shadow-sm border-start border-4 border-primary">
           <div class="card-body">
@@ -45,7 +34,6 @@
           </div>
         </div>
       </div>
-
       <div class="col-md-3">
         <div class="card shadow-sm">
           <div class="card-body">
@@ -56,7 +44,6 @@
           </div>
         </div>
       </div>
-
       <div class="col-md-3">
         <div class="card shadow-sm">
           <div class="card-body">
@@ -70,7 +57,6 @@
           </div>
         </div>
       </div>
-
       <div class="col-md-3">
         <div class="card shadow-sm border-start border-4 border-success">
           <div class="card-body">
@@ -91,7 +77,6 @@
           </div>
         </div>
       </div>
-
     </div>
 
     <!-- BLOQUE: Gastos estructurales del proyecto -->
@@ -102,29 +87,113 @@
       </div>
       <div class="card-body">
         <p class="text-muted small mb-3">
-          Conceptos que siempre forman parte de la operación.
+          Todos los gastos se introducen inicialmente como estimados. Se marcarán como confirmados cuando exista justificante.
         </p>
 
         <h6 class="fw-semibold">Gastos de adquisición y legales</h6>
         <div class="row g-2 mb-3">
-          <div class="col-md-4"><div class="d-flex justify-content-between p-2 border rounded"><span>Notaría</span><input type="number" step="0.01" class="form-control form-control-sm text-end" name="notaria" value="{{ gastos_base.notaria|default_if_none:''|floatformat:2 }}"></div></div>
-          <div class="col-md-4"><div class="d-flex justify-content-between p-2 border rounded"><span>Impuestos</span><input type="number" step="0.01" class="form-control form-control-sm text-end" name="impuestos" value="{{ gastos_base.impuestos|default_if_none:''|floatformat:2 }}"></div></div>
-          <div class="col-md-4"><div class="d-flex justify-content-between p-2 border rounded"><span>Registro</span><input type="number" step="0.01" class="form-control form-control-sm text-end" name="registro" value="{{ gastos_base.registro|default_if_none:''|floatformat:2 }}"></div></div>
-          <div class="col-md-4"><div class="d-flex justify-content-between p-2 border rounded"><span>Gestoría</span><input type="number" step="0.01" class="form-control form-control-sm text-end" name="gestoria" value="{{ gastos_base.gestoria|default_if_none:''|floatformat:2 }}"></div></div>
-          <div class="col-md-4"><div class="d-flex justify-content-between p-2 border rounded"><span>IBI</span><input type="number" step="0.01" class="form-control form-control-sm text-end" name="ibi" value="{{ gastos_base.ibi|default_if_none:''|floatformat:2 }}"></div></div>
+          <div class="col-md-4">
+            <div class="d-flex align-items-center justify-content-between gap-2 bg-light p-2 border rounded">
+              <span>Notaría</span>
+              <input type="number" step="0.01" class="form-control form-control-sm text-end" name="notaria" value="{{ gastos_base.notaria|default_if_none:''|floatformat:2 }}">
+              <span class="badge bg-secondary text-light">ESTIMADO</span>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="d-flex align-items-center justify-content-between gap-2 bg-light p-2 border rounded">
+              <span>Impuestos</span>
+              <input type="number" step="0.01" class="form-control form-control-sm text-end" name="impuestos" value="{{ gastos_base.impuestos|default_if_none:''|floatformat:2 }}">
+              <span class="badge bg-secondary text-light">ESTIMADO</span>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="d-flex align-items-center justify-content-between gap-2 bg-light p-2 border rounded">
+              <span>Registro</span>
+              <input type="number" step="0.01" class="form-control form-control-sm text-end" name="registro" value="{{ gastos_base.registro|default_if_none:''|floatformat:2 }}">
+              <span class="badge bg-secondary text-light">ESTIMADO</span>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="d-flex align-items-center justify-content-between gap-2 bg-light p-2 border rounded">
+              <span>Gestoría</span>
+              <input type="number" step="0.01" class="form-control form-control-sm text-end" name="gestoria" value="{{ gastos_base.gestoria|default_if_none:''|floatformat:2 }}">
+              <span class="badge bg-secondary text-light">ESTIMADO</span>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="d-flex align-items-center justify-content-between gap-2 bg-light p-2 border rounded">
+              <span>IBI</span>
+              <input type="number" step="0.01" class="form-control form-control-sm text-end" name="ibi" value="{{ gastos_base.ibi|default_if_none:''|floatformat:2 }}">
+              <span class="badge bg-secondary text-light">ESTIMADO</span>
+            </div>
+          </div>
         </div>
 
         <h6 class="fw-semibold">Gastos operativos y de gestión</h6>
         <div class="row g-2">
-          <div class="col-md-4"><div class="d-flex justify-content-between p-2 border rounded"><span>Alarma</span><input type="number" step="0.01" class="form-control form-control-sm text-end" name="alarma" value="{{ gastos_base.alarma|default_if_none:''|floatformat:2 }}"></div></div>
-          <div class="col-md-4"><div class="d-flex justify-content-between p-2 border rounded"><span>Limpieza / Vaciado</span><input type="number" step="0.01" class="form-control form-control-sm text-end" name="limpieza_vaciado" value="{{ gastos_base.limpieza_vaciado|default_if_none:''|floatformat:2 }}"></div></div>
-          <div class="col-md-4"><div class="d-flex justify-content-between p-2 border rounded"><span>Cerrajero</span><input type="number" step="0.01" class="form-control form-control-sm text-end" name="cerrajero" value="{{ gastos_base.cerrajero|default_if_none:''|floatformat:2 }}"></div></div>
-          <div class="col-md-4"><div class="d-flex justify-content-between p-2 border rounded"><span>Agua</span><input type="number" step="0.01" class="form-control form-control-sm text-end" name="agua" value="{{ gastos_base.agua|default_if_none:''|floatformat:2 }}"></div></div>
-          <div class="col-md-4"><div class="d-flex justify-content-between p-2 border rounded"><span>Luz</span><input type="number" step="0.01" class="form-control form-control-sm text-end" name="luz" value="{{ gastos_base.luz|default_if_none:''|floatformat:2 }}"></div></div>
-          <div class="col-md-4"><div class="d-flex justify-content-between p-2 border rounded"><span>Comunidad</span><input type="number" step="0.01" class="form-control form-control-sm text-end" name="comunidad" value="{{ gastos_base.comunidad|default_if_none:''|floatformat:2 }}"></div></div>
-          <div class="col-md-4"><div class="d-flex justify-content-between p-2 border rounded"><span>Comercialización</span><input type="number" step="0.01" class="form-control form-control-sm text-end" name="comercializacion" value="{{ gastos_base.comercializacion|default_if_none:''|floatformat:2 }}"></div></div>
-          <div class="col-md-4"><div class="d-flex justify-content-between p-2 border rounded"><span>Administración</span><input type="number" step="0.01" class="form-control form-control-sm text-end" name="administracion" value="{{ gastos_base.administracion|default_if_none:''|floatformat:2 }}"></div></div>
-          <div class="col-md-4"><div class="d-flex justify-content-between p-2 border rounded"><span>Comisión Inversure</span><input type="number" step="0.01" class="form-control form-control-sm text-end" name="comision_inversure" value="{{ gastos_base.comision_inversure|default_if_none:''|floatformat:2 }}"></div></div>
+          <div class="col-md-4">
+            <div class="d-flex align-items-center justify-content-between gap-2 bg-light p-2 border rounded">
+              <span>Alarma</span>
+              <input type="number" step="0.01" class="form-control form-control-sm text-end" name="alarma" value="{{ gastos_base.alarma|default_if_none:''|floatformat:2 }}">
+              <span class="badge bg-secondary text-light">ESTIMADO</span>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="d-flex align-items-center justify-content-between gap-2 bg-light p-2 border rounded">
+              <span>Limpieza / Vaciado</span>
+              <input type="number" step="0.01" class="form-control form-control-sm text-end" name="limpieza_vaciado" value="{{ gastos_base.limpieza_vaciado|default_if_none:''|floatformat:2 }}">
+              <span class="badge bg-secondary text-light">ESTIMADO</span>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="d-flex align-items-center justify-content-between gap-2 bg-light p-2 border rounded">
+              <span>Cerrajero</span>
+              <input type="number" step="0.01" class="form-control form-control-sm text-end" name="cerrajero" value="{{ gastos_base.cerrajero|default_if_none:''|floatformat:2 }}">
+              <span class="badge bg-secondary text-light">ESTIMADO</span>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="d-flex align-items-center justify-content-between gap-2 bg-light p-2 border rounded">
+              <span>Agua</span>
+              <input type="number" step="0.01" class="form-control form-control-sm text-end" name="agua" value="{{ gastos_base.agua|default_if_none:''|floatformat:2 }}">
+              <span class="badge bg-secondary text-light">ESTIMADO</span>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="d-flex align-items-center justify-content-between gap-2 bg-light p-2 border rounded">
+              <span>Luz</span>
+              <input type="number" step="0.01" class="form-control form-control-sm text-end" name="luz" value="{{ gastos_base.luz|default_if_none:''|floatformat:2 }}">
+              <span class="badge bg-secondary text-light">ESTIMADO</span>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="d-flex align-items-center justify-content-between gap-2 bg-light p-2 border rounded">
+              <span>Comunidad</span>
+              <input type="number" step="0.01" class="form-control form-control-sm text-end" name="comunidad" value="{{ gastos_base.comunidad|default_if_none:''|floatformat:2 }}">
+              <span class="badge bg-secondary text-light">ESTIMADO</span>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="d-flex align-items-center justify-content-between gap-2 bg-light p-2 border rounded">
+              <span>Comercialización</span>
+              <input type="number" step="0.01" class="form-control form-control-sm text-end" name="comercializacion" value="{{ gastos_base.comercializacion|default_if_none:''|floatformat:2 }}">
+              <span class="badge bg-secondary text-light">ESTIMADO</span>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="d-flex align-items-center justify-content-between gap-2 bg-light p-2 border rounded">
+              <span>Administración</span>
+              <input type="number" step="0.01" class="form-control form-control-sm text-end" name="administracion" value="{{ gastos_base.administracion|default_if_none:''|floatformat:2 }}">
+              <span class="badge bg-secondary text-light">ESTIMADO</span>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="d-flex align-items-center justify-content-between gap-2 bg-light p-2 border rounded">
+              <span>Comisión Inversure</span>
+              <input type="number" step="0.01" class="form-control form-control-sm text-end" name="comision_inversure" value="{{ gastos_base.comision_inversure|default_if_none:''|floatformat:2 }}">
+              <span class="badge bg-secondary text-light">ESTIMADO</span>
+            </div>
+          </div>
         </div>
       </div>
     </div>
