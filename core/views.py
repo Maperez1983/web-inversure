@@ -815,223 +815,11 @@ def proyecto_gastos(request, proyecto_id):
 
     from django.db.models import Sum
 
-    def gasto_base(nombre):
-        return (
-            GastoProyecto.objects.filter(
-                proyecto=proyecto,
-                concepto__iexact=nombre
-            ).aggregate(total=Sum("importe"))["total"]
-            or Decimal("0")
-        )
-
-    gastos_base = {
-        "precio_escritura": safe_attr(proyecto, "precio_compra_inmueble"),
-        "notaria": safe_attr(proyecto, "notaria"),
-        "itp": safe_attr(proyecto, "itp"),
-        "registro": safe_attr(proyecto, "registro"),
-        "ibi": safe_attr(proyecto, "ibi"),
-
-        # Servicios base (siempre como gastos, nunca como campos del proyecto)
-        "alarma": gasto_base("alarma"),
-        "cerrajero": gasto_base("cerrajero"),
-        "limpieza_vaciado": gasto_base("limpieza / vaciado"),
-
-        # Comisiones configurables
-        "comision_inversure_pct": safe_attr(datos_economicos, "comision_inversure_pct"),
-        "administracion_pct": safe_attr(datos_economicos, "administracion_pct"),
-        "comercializacion_pct": safe_attr(datos_economicos, "comercializacion_pct"),
-    }
-
-
-    if request.method == "POST":
-        # Detectar tipo de formulario enviado
-        tipo_form = request.POST.get("form_tipo")
-
-        # GUARDAR ESTADO DEL PROYECTO (C1.3.2)
-        if tipo_form == "estado":
-            estado_nuevo = request.POST.get("estado")
-
-            ESTADOS_VALIDOS = [
-                "estudio",
-                "reservado",
-                "comprado",
-                "operacion",
-                "vendido",
-                "descartado",
-            ]
-
-            if estado_nuevo in ESTADOS_VALIDOS:
-                proyecto.estado = estado_nuevo
-                proyecto.save(update_fields=["estado"])
-
-            return redirect("core:proyecto_gastos", proyecto_id=proyecto.id)
-
-        # GUARDAR DATOS DE ADQUISICIÓN (C1.2)
-        if tipo_form == "adquisicion":
-            proyecto.precio_compra_inmueble = parse_euro(request.POST.get("precio_compra_inmueble"))
-            proyecto.fecha_compra = request.POST.get("fecha_compra") or None
-            proyecto.tipo_adquisicion = request.POST.get("tipo_adquisicion") or None
-            proyecto.impuesto_tipo = request.POST.get("impuesto_tipo") or None
-
-            proyecto.impuesto_porcentaje = parse_euro(request.POST.get("impuesto_porcentaje"))
-            proyecto.itp = parse_euro(request.POST.get("itp"))
-            proyecto.notaria = parse_euro(request.POST.get("notaria"))
-            proyecto.registro = parse_euro(request.POST.get("registro"))
-            proyecto.gestoria = parse_euro(request.POST.get("gestoria"))
-
-            proyecto.save()
-            return redirect("core:proyecto_gastos", proyecto_id=proyecto.id)
-
-        # GUARDAR INGRESOS DEL PROYECTO (C2.3.2 – normalizado)
-        if tipo_form == "ingresos":
-            tipo_ingreso = request.POST.get("tipo_ingreso")
-            fecha_ingreso = request.POST.get("fecha_ingreso")
-            concepto = request.POST.get("concepto") or tipo_ingreso
-            importe_ingreso_raw = request.POST.get("importe_ingreso")
-
-            try:
-                importe_ingreso = Decimal(str(importe_ingreso_raw).replace(",", "."))
-            except Exception:
-                importe_ingreso = Decimal("0")
-
-            IngresoProyecto.objects.create(
-                proyecto=proyecto,
-                fecha=fecha_ingreso,
-                tipo=tipo_ingreso,
-                concepto=concepto,
-                importe=importe_ingreso,
-                imputable_inversores=True,
-            )
-
-            return redirect("core:proyecto_gastos", proyecto_id=proyecto.id)
-
-        # 🔒 SEGURIDAD: si el POST no coincide con ningún form_tipo,
-        # no redirigir (evita bucle infinito de redirecciones)
-        pass
-
     # =========================
-    # LECTURA DE GASTOS
-    gastos = GastoProyecto.objects.filter(proyecto=proyecto)
-    gastos_extraordinarios = gastos.order_by("-fecha")
-    total_gastos = gastos.aggregate(total=Sum("importe"))["total"] or 0
-
-    # === NUEVO BLOQUE: gastos_reales_list y total_gastos_reales ===
-    gastos_reales_list = []
-    total_gastos_reales = Decimal("0")
-    for gasto in gastos:
-        tiene_justificante = bool(getattr(gasto, "factura", None))
-        gastos_reales_list.append({
-            "gasto": gasto,
-            "es_real": True,
-            "es_estimado": False,
-            "tiene_justificante": tiene_justificante,
-        })
-        total_gastos_reales += gasto.importe or Decimal("0")
-
-    # === NUEVO BLOQUE: gastos_estimados_list y total_gastos_estimados ===
-    # Campos heredados del proyecto:
-    campos_estimados = [
-        ("notaria", "Notaría"),
-        ("registro", "Registro"),
-        ("itp", "ITP"),
-        ("otros_gastos_compra", "Otros gastos de compra"),
-        ("ibi", "IBI"),
-        ("limpieza_inicial", "Limpieza inicial"),
-    ]
-    gastos_estimados_list = []
-    total_gastos_estimados = Decimal("0")
-    for campo, concepto_legible in campos_estimados:
-        importe = safe_attr(proyecto, campo)
-        if importe and importe != 0:
-            gastos_estimados_list.append({
-                "concepto": concepto_legible,
-                "importe": importe,
-                "es_real": False,
-                "es_estimado": True,
-                "tiene_justificante": False,
-            })
-            total_gastos_estimados += importe
-
-    # === NUEVO BLOQUE: total_gastos_proyecto ===
-    total_gastos_proyecto = total_gastos_estimados + total_gastos_reales
-
+    # CABECERA ECONÓMICA ÚNICA (TRAZABLE)
     # =========================
-    # LECTURA DE INGRESOS (C2.3)
-    # =========================
-    ingresos = IngresoProyecto.objects.filter(proyecto=proyecto)
-    total_ingresos = ingresos.aggregate(
-        total=Sum("importe")
-    )["total"] or Decimal("0")
-
-    # =========================
-    # INVERSIÓN TOTAL CONSOLIDADA DESDE CABECERA ECONÓMICA
-    # =========================
-    # Obtener precio de adquisición y total de gastos desde cabecera económica
-    precio_adquisicion = safe_attr(proyecto, "precio_compra_inmueble")
-    gastos_estimados = (
-        safe_attr(proyecto, "notaria")
-        + safe_attr(proyecto, "registro")
-        + safe_attr(proyecto, "itp")
-        + safe_attr(proyecto, "otros_gastos_compra")
-        + safe_attr(proyecto, "ibi")
-        + safe_attr(proyecto, "limpieza_inicial")
-    )
-    gastos_reales = (
-        GastoProyecto.objects.filter(proyecto=proyecto)
-        .aggregate(total=Sum("importe"))["total"]
-        or Decimal("0")
-    )
-    total_gastos_cabecera = gastos_estimados + gastos_reales
-    inversion_total = precio_adquisicion + total_gastos_cabecera
-
-    # =========================
-    # C2.3.3 – RESULTADO REAL USANDO INGRESOS NORMALIZADOS (recalculado)
-    # =========================
-    # Cálculo de beneficio bruto real y resultado económico
-    beneficio_bruto_real = total_ingresos - inversion_total
-    # Pasa el beneficio bruto calculado al modelo temporalmente para el cálculo
-    proyecto.beneficio_bruto = beneficio_bruto_real
-    resultado = calcular_resultado_economico_proyecto(proyecto)
-    beneficio_neto = resultado["beneficio_neto"]
-    roi_real = (beneficio_neto / inversion_total * Decimal("100")) if inversion_total > 0 else Decimal("0")
-
-
-    # =========================
-    # GASTOS ORDINARIOS (FIJOS)
-    # =========================
-    gastos_ordinarios = (
-        safe_attr(proyecto, "precio_compra_inmueble")
-        + safe_attr(proyecto, "notaria")
-        + safe_attr(proyecto, "itp")
-        + safe_attr(proyecto, "registro")
-        + safe_attr(proyecto, "otros_gastos_compra")
-        + safe_attr(proyecto, "ibi")
-        + safe_attr(proyecto, "alarma")
-        + safe_attr(proyecto, "limpieza_inicial")
-        + Decimal("0")
-    )
-
-    # =========================
-    # GASTOS EXTRAORDINARIOS
-    # =========================
-    total_gastos_extraordinarios = (
-        gastos.aggregate(total=Sum("importe"))["total"]
-        or Decimal("0")
-    )
-
-    # =========================
-    # TOTAL GASTOS PROYECTO
-    # =========================
-    total_gastos_proyecto = gastos_ordinarios + total_gastos_extraordinarios
-
-    # =========================
-    # CABECERA ECONÓMICA (PASO 1 – LECTURA, TRAZABLE)
-    # =========================
-
-    # Precio de adquisición (precio escritura real o heredado del estudio)
     precio_adquisicion = safe_attr(proyecto, "precio_compra_inmueble")
 
-    # Gastos estimados heredados del estudio (EDITABLES, NO CONFIRMADOS)
     gastos_estimados = (
         safe_attr(proyecto, "notaria")
         + safe_attr(proyecto, "registro")
@@ -1041,34 +829,98 @@ def proyecto_gastos(request, proyecto_id):
         + safe_attr(proyecto, "limpieza_inicial")
     )
 
-    # Gastos reales (apuntes económicos con trazabilidad)
     gastos_reales = (
-        GastoProyecto.objects.filter(proyecto=proyecto)
+        GastoProyecto.objects
+        .filter(proyecto=proyecto)
         .aggregate(total=Sum("importe"))["total"]
         or Decimal("0")
     )
 
-    # Total de gastos del proyecto (estimados + reales)
-    total_gastos_cabecera = gastos_estimados + gastos_reales
-
-    # Valor de transmisión (estimado hasta venta real)
+    total_gastos = gastos_estimados + gastos_reales
     valor_transmision = safe_attr(proyecto, "venta_estimada")
 
     cabecera_economica = {
         "precio_adquisicion": precio_adquisicion,
         "gastos_estimados": gastos_estimados,
         "gastos_reales": gastos_reales,
-        "total_gastos": total_gastos_cabecera,
+        "total_gastos": total_gastos,
         "valor_transmision": valor_transmision,
     }
+
+    # =========================
+    # POST: CAMBIOS DE ESTADO / ADQUISICIÓN / INGRESOS
+    # =========================
+    if request.method == "POST":
+        tipo_form = request.POST.get("form_tipo")
+
+        if tipo_form == "estado":
+            estado_nuevo = request.POST.get("estado")
+            if estado_nuevo:
+                proyecto.estado = estado_nuevo
+                proyecto.save(update_fields=["estado"])
+            return redirect("core:proyecto_gastos", proyecto_id=proyecto.id)
+
+        if tipo_form == "adquisicion":
+            proyecto.precio_compra_inmueble = parse_euro(request.POST.get("precio_compra_inmueble"))
+            proyecto.notaria = parse_euro(request.POST.get("notaria"))
+            proyecto.registro = parse_euro(request.POST.get("registro"))
+            proyecto.itp = parse_euro(request.POST.get("itp"))
+            proyecto.otros_gastos_compra = parse_euro(request.POST.get("otros_gastos_compra"))
+            proyecto.ibi = parse_euro(request.POST.get("ibi"))
+            proyecto.limpieza_inicial = parse_euro(request.POST.get("limpieza_inicial"))
+            proyecto.save()
+            return redirect("core:proyecto_gastos", proyecto_id=proyecto.id)
+
+        if tipo_form == "ingresos":
+            IngresoProyecto.objects.create(
+                proyecto=proyecto,
+                fecha=request.POST.get("fecha_ingreso"),
+                concepto=request.POST.get("concepto"),
+                importe=parse_euro(request.POST.get("importe_ingreso")),
+                imputable_inversores=True,
+            )
+            return redirect("core:proyecto_gastos", proyecto_id=proyecto.id)
+
+    # =========================
+    # LECTURA DE GASTOS (ÚNICA FUENTE)
+    # =========================
+    gastos = GastoProyecto.objects.filter(proyecto=proyecto).order_by("-fecha")
+
+    gastos_list = []
+    for gasto in gastos:
+        gastos_list.append({
+            "gasto": gasto,
+            "importe": gasto.importe or Decimal("0"),
+            "tiene_justificante": bool(getattr(gasto, "factura", None)),
+        })
+
+    # =========================
+    # INGRESOS
+    # =========================
+    ingresos = IngresoProyecto.objects.filter(proyecto=proyecto)
+    total_ingresos = ingresos.aggregate(total=Sum("importe"))["total"] or Decimal("0")
+
+    # =========================
+    # RESULTADO ECONÓMICO REAL
+    # =========================
+    inversion_total = precio_adquisicion + total_gastos
+    beneficio_bruto_real = total_ingresos - inversion_total
+
+    proyecto.beneficio_bruto = beneficio_bruto_real
+    resultado = calcular_resultado_economico_proyecto(proyecto)
+
+    beneficio_neto = resultado.get("beneficio_neto", Decimal("0"))
+    roi_real = (beneficio_neto / inversion_total * Decimal("100")) if inversion_total > 0 else Decimal("0")
 
     contexto = {
         "proyecto": proyecto,
         "cabecera_economica": cabecera_economica,
-        "total_gastos_estimados": total_gastos_estimados,
-        "total_gastos_reales": total_gastos_reales,
-        "total_gastos_proyecto": total_gastos_proyecto,
+        "gastos": gastos_list,
+        "total_gastos": total_gastos,
+        "total_ingresos": total_ingresos,
         "inversion_total": inversion_total,
+        "beneficio_neto": beneficio_neto,
+        "roi_real": roi_real,
     }
 
     return render(
