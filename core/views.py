@@ -876,6 +876,9 @@ def proyecto_gastos_autoguardado(request, proyecto_id):
 from django.views.decorators.csrf import ensure_csrf_cookie
 
 @ensure_csrf_cookie
+from django.views.decorators.csrf import ensure_csrf_cookie
+
+@ensure_csrf_cookie
 def proyecto_gastos(request, proyecto_id):
     proyecto = get_object_or_404(Proyecto, id=proyecto_id)
     from .models import DatosEconomicosProyecto
@@ -963,7 +966,7 @@ def proyecto_gastos(request, proyecto_id):
     gastos_estimados = gastos_qs.filter(estado="estimado").aggregate(total=Sum("importe"))["total"] or Decimal("0")
     gastos_reales = gastos_qs.filter(estado="real").aggregate(total=Sum("importe"))["total"] or Decimal("0")
     total_gastos = gastos_estimados + gastos_reales
-    precio_adquisicion = safe_attr(proyecto, "precio_compra_inmueble")
+    precio_adquisicion = safe_attr(proyecto, "precio_compra_inmueble") or safe_attr(proyecto, "precio_propiedad")
     valor_transmision = safe_attr(proyecto, "venta_estimada")
     valor_adquisicion_total = precio_adquisicion + total_gastos
 
