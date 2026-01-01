@@ -863,13 +863,16 @@ def proyecto_gastos(request, proyecto_id):
             proyecto.otros_gastos_compra = parse_euro(request.POST.get("otros_gastos_compra"))
             proyecto.ibi = parse_euro(request.POST.get("ibi"))
             proyecto.limpieza_inicial = parse_euro(request.POST.get("limpieza_inicial"))
-            proyecto.save()
+            proyecto.save(update_fields=[
+                "precio_compra_inmueble",
+                "notaria",
+                "registro",
+                "itp",
+                "otros_gastos_compra",
+                "ibi",
+                "limpieza_inicial",
+            ])
             messages.success(request, "Cambios económicos guardados correctamente.")
-            return render(
-                request,
-                "core/proyecto_gastos.html",
-                contexto
-            )
 
         if tipo_form == "ingresos":
             IngresoProyecto.objects.create(
