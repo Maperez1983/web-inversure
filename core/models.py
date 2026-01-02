@@ -809,6 +809,93 @@ class Simulacion(models.Model):
         return f"Simulación: {self.nombre}"
 #
 # =========================
+# MODELO GASTOS ESTIMADOS DEL PROYECTO (FASE ESTUDIO)
+# =========================
+class GastosProyectoEstimacion(models.Model):
+
+    proyecto = models.OneToOneField(
+        Proyecto,
+        on_delete=models.CASCADE,
+        related_name="gastos_estimacion"
+    )
+
+    # --- GASTOS DE ADQUISICIÓN ---
+    precio_escritura = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    estado_precio_escritura = models.CharField(max_length=10, default="estimado")
+
+    impuestos = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    estado_impuestos = models.CharField(max_length=10, default="estimado")
+
+    notaria = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    estado_notaria = models.CharField(max_length=10, default="estimado")
+
+    registro = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    estado_registro = models.CharField(max_length=10, default="estimado")
+
+    gestoria = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    estado_gestoria = models.CharField(max_length=10, default="estimado")
+
+    # --- GASTOS DE MANTENIMIENTO ---
+    ibi = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    estado_ibi = models.CharField(max_length=10, default="estimado")
+
+    comunidad = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    estado_comunidad = models.CharField(max_length=10, default="estimado")
+
+    luz = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    estado_luz = models.CharField(max_length=10, default="estimado")
+
+    agua = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    estado_agua = models.CharField(max_length=10, default="estimado")
+
+    alarma = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    estado_alarma = models.CharField(max_length=10, default="estimado")
+
+    cerrajero = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    estado_cerrajero = models.CharField(max_length=10, default="estimado")
+
+    limpieza_vaciado = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    estado_limpieza_vaciado = models.CharField(max_length=10, default="estimado")
+
+    # --- GASTOS DE OBRA ---
+    obra_reforma = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    estado_obra_reforma = models.CharField(max_length=10, default="estimado")
+
+    obra_materiales = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    estado_obra_materiales = models.CharField(max_length=10, default="estimado")
+
+    obra_mano_obra = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    estado_obra_mano_obra = models.CharField(max_length=10, default="estimado")
+
+    obra_tecnico = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    estado_obra_tecnico = models.CharField(max_length=10, default="estimado")
+
+    obra_licencias = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    estado_obra_licencias = models.CharField(max_length=10, default="estimado")
+
+    obra_contingencia = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    estado_obra_contingencia = models.CharField(max_length=10, default="estimado")
+
+    # --- COMERCIALIZACIÓN Y GESTIÓN ---
+    comercializacion = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    estado_comercializacion = models.CharField(max_length=10, default="estimado")
+
+    administracion = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    estado_administracion = models.CharField(max_length=10, default="estimado")
+
+    comision_inversure = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    estado_comision_inversure = models.CharField(max_length=10, default="estimado")
+
+    # --- VENTA ESTIMADA ---
+    valor_transmision_estimado = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+
+    creado = models.DateTimeField(auto_now_add=True)
+    actualizado = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Estimación de gastos · {self.proyecto}"
+
+# =========================
 # MODELO DATOS ECONÓMICOS REALES DEL PROYECTO (G3.1)
 # =========================
 class DatosEconomicosProyecto(models.Model):
