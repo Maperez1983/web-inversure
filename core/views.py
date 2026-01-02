@@ -836,37 +836,44 @@ def proyecto_gastos(request, proyecto_id):
             except Exception:
                 payload = {}
 
-        campos_guardables = [
-            "precio_escritura",
-            "impuestos",
-            "notaria",
-            "registro",
-            "gestoria",
-            "ibi",
-            "comunidad",
-            "luz",
-            "agua",
-            "alarma",
-            "cerrajero",
-            "limpieza_vaciado",
-            "obra_reforma",
-            "obra_materiales",
-            "obra_mano_obra",
-            "obra_tecnico",
-            "obra_licencias",
-            "obra_contingencia",
-            "comercializacion",
-            "administracion",
-            "comision_inversure",
-            "valor_transmision_estimado",
-        ]
+        # ==========================================================
+        # MAPEO CORRECTO ENTRE INPUTS HTML Y MODELO DatosEconomicosProyecto
+        # ==========================================================
+        MAPEO_CAMPOS = {
+            "precio_escritura_real": "precio_escritura",
+            "impuesto_importe_real": "impuestos",
+            "notaria_real": "notaria",
+            "registro_real": "registro",
+            "gestoria_real": "gestoria",
 
-        for campo in campos_guardables:
-            if campo in payload:
+            "ibi_real": "ibi",
+            "comunidad_real": "comunidad",
+            "luz_real": "luz",
+            "agua_real": "agua",
+            "alarma_real": "alarma",
+            "cerrajero_real": "cerrajero",
+            "limpieza_vaciado_real": "limpieza_vaciado",
+
+            "obra_reforma_real": "obra_reforma",
+            "obra_materiales_real": "obra_materiales",
+            "obra_mano_obra_real": "obra_mano_obra",
+            "obra_tecnico_real": "obra_tecnico",
+            "obra_licencias_real": "obra_licencias",
+            "obra_contingencia_real": "obra_contingencia",
+
+            "comercializacion_real": "comercializacion",
+            "administracion_real": "administracion",
+            "comision_inversure_real": "comision_inversure",
+
+            "precio_venta_real": "valor_transmision_estimado",
+        }
+
+        for campo_html, campo_modelo in MAPEO_CAMPOS.items():
+            if campo_html in payload:
                 setattr(
                     datos_economicos,
-                    campo,
-                    parse_euro(payload.get(campo))
+                    campo_modelo,
+                    parse_euro(payload.get(campo_html))
                 )
 
         datos_economicos.save()
