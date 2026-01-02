@@ -70,6 +70,8 @@ from django.views.decorators.csrf import ensure_csrf_cookie
 from decimal import Decimal
 from .models import Proyecto, Cliente, Participacion, Simulacion
 
+from core.models import DatosEconomicosProyecto
+
 from .models import GastoProyecto
 from .models import IngresoProyecto
 
@@ -814,6 +816,9 @@ from decimal import Decimal
 @csrf_protect
 def proyecto_gastos(request, proyecto_id):
     proyecto = get_object_or_404(Proyecto, id=proyecto_id)
+    datos_economicos, _ = DatosEconomicosProyecto.objects.get_or_create(
+        proyecto=proyecto
+    )
 
     # Paso 2: Persistencia (soporta POST tradicional y AJAX JSON)
     if request.method == "POST":
@@ -831,42 +836,46 @@ def proyecto_gastos(request, proyecto_id):
             except Exception:
                 payload = {}
 
-        # Aceptar nombres alternativos/legacy para evitar desajustes con el template
-        precio_raw = (
-            payload.get("precio_compra_inmueble")
-            or payload.get("precio_compra")
-            or payload.get("precio_propiedad")
-            or payload.get("precio_escritura")
-        )
-        venta_raw = (
-            payload.get("venta_estimada")
-            or payload.get("precio_venta")
-            or payload.get("valor_transmision")
-            or payload.get("venta")
-        )
+        campos_guardables = [
+            "precio_escritura",
+            "impuestos",
+            "notaria",
+            "registro",
+            "gestoria",
+            "ibi",
+            "comunidad",
+            "luz",
+            "agua",
+            "alarma",
+            "cerrajero",
+            "limpieza_vaciado",
+            "obra_reforma",
+            "obra_materiales",
+            "obra_mano_obra",
+            "obra_tecnico",
+            "obra_licencias",
+            "obra_contingencia",
+            "comercializacion",
+            "administracion",
+            "comision_inversure",
+            "valor_transmision_estimado",
+        ]
 
-        changed_fields = []
+        for campo in campos_guardables:
+            if campo in payload:
+                setattr(
+                    datos_economicos,
+                    campo,
+                    parse_euro(payload.get(campo))
+                )
 
-        # Guardar solo si vienen valores (evita pisar con None por POST vacío)
-        if precio_raw not in (None, ""):
-            proyecto.precio_compra_inmueble = parse_euro(precio_raw)
-            changed_fields.append("precio_compra_inmueble")
+        datos_economicos.save()
 
-        if venta_raw not in (None, ""):
-            proyecto.venta_estimada = parse_euro(venta_raw)
-            changed_fields.append("venta_estimada")
-
-        if changed_fields:
-            proyecto.save(update_fields=changed_fields)
-
-        # Si es una petición AJAX, devolver respuesta JSON clara
         is_ajax = request.headers.get("x-requested-with") == "XMLHttpRequest" or (request.headers.get("accept") or "").lower().find("application/json") >= 0
         if is_ajax:
             return JsonResponse({
                 "ok": True,
-                "saved": changed_fields,
-                "precio_compra_inmueble": float(proyecto.precio_compra_inmueble or 0),
-                "venta_estimada": float(proyecto.venta_estimada or 0),
+                "saved": campos_guardables,
             })
 
     # Paso 3: Cards y cálculos SOLO desde BD
@@ -927,6 +936,8 @@ def proyecto_gastos(request, proyecto_id):
         "inversion_total": inversion_total,
         "beneficio_neto": beneficio_neto,
         "roi_real": roi_real,
+        "datos_economicos": datos_economicos,
+        "gastos_base": datos_economicos,
     }
 
     return render(
