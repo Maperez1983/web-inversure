@@ -463,19 +463,14 @@
   }
 
   function autoSave() {
-    const payload = buildPayload();
-    const payloadString = JSON.stringify(payload);
-
-    if (payloadString === lastPayload) return;
-    lastPayload = payloadString;
+    const formData = new FormData(form);
 
     fetch(window.location.pathname, {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
         "X-CSRFToken": csrftoken
       },
-      body: payloadString
+      body: formData
     }).catch(err => {
       console.error("Error autoguardado:", err);
     });
