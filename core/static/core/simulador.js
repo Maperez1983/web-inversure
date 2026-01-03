@@ -149,22 +149,6 @@ function recalcPrecioCompraInmueble() {
 }
 
 /* ===============================
-   MAPA
-=============================== */
-
-function activarMapaAutomatico() {
-    const iframe = document.getElementById("mapIframe");
-    const direccionInput = document.getElementById("direccion");
-
-    if (!iframe || !direccionInput) return;
-
-    const direccion = direccionInput.value?.trim();
-    if (!direccion) return;
-
-    iframe.src = `https://www.google.com/maps?q=${encodeURIComponent(direccion)}&output=embed`;
-}
-
-/* ===============================
    CATASTRO
 =============================== */
 
@@ -245,7 +229,6 @@ document.addEventListener("DOMContentLoaded", () => {
             el.addEventListener("blur", recalcPrecioCompraInmueble);
         }
     });
-    activarMapaAutomatico();
     aplicarFormatoEuroInicial();
 
     document.querySelectorAll('[data-euro], .euro-input').forEach(el => {
@@ -262,12 +245,6 @@ document.addEventListener("DOMContentLoaded", () => {
             el.addEventListener("input", () => el.dataset.manual = "1");
         }
     });
-
-    const direccion = document.getElementById("direccion");
-    if (direccion) {
-        direccion.addEventListener("input", activarMapaAutomatico);
-        direccion.addEventListener("blur", activarMapaAutomatico);
-    }
 
     // Recalcular reforma cuando se modifique obra o seguridad
     [
