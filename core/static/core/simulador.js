@@ -77,6 +77,38 @@ function recalcGastosAdquisicion() {
 /* ===============================
    RESULTADOS / RENTABILIDAD
 =============================== */
+function recalcMediaValoraciones() {
+    const valoraciones = [
+        getFieldByNames(["valoracion_idealista"]),
+        getFieldByNames(["valoracion_fotocasa"]),
+        getFieldByNames(["valoracion_habitaclia"]),
+        getFieldByNames(["valoracion_otro"])
+    ].filter(Boolean);
+
+    let suma = 0;
+    let count = 0;
+
+    valoraciones.forEach(el => {
+        const v = parseEuro(el.value);
+        if (v > 0) {
+            suma += v;
+            count += 1;
+        }
+    });
+
+    const media = count > 0 ? suma / count : 0;
+
+    const mediaInput = getFieldByNames([
+        "media_valoraciones",
+        "venta_estimada",
+        "precio_venta_estimado"
+    ]);
+
+    if (mediaInput) mediaInput.value = formatEuro(media);
+
+    return media;
+}
+
 function recalcResultados() {
     const valorAdqInput = getFieldByNames([
         "valor_adquisicion",
@@ -91,7 +123,7 @@ function recalcResultados() {
 
     const valorAdq = parseEuro(valorAdqInput?.value);
     const reforma = parseEuro(reformaInput?.value);
-    const venta = parseEuro(ventaInput?.value);
+    const venta = recalcMediaValoraciones();
 
     const costeTotal = valorAdq + reforma;
     const beneficio = venta - costeTotal;
@@ -111,6 +143,7 @@ document.addEventListener("DOMContentLoaded", () => {
     document.querySelectorAll("input").forEach(el => {
         el.addEventListener("input", () => {
             recalcGastosAdquisicion();
+            recalcMediaValoraciones();
             recalcResultados();
         });
     });
