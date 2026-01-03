@@ -375,7 +375,7 @@ def simulador(request, proyecto_id=None):
 
             proyecto.save()
 
-            return redirect("core:simulador", proyecto_id=proyecto.id)
+            return redirect("core:lista_estudios")
 
         # =========================
         # CONVERTIR SIMULADOR EN PROYECTO (NO CAMBIA ESTADO MANUALMENTE)
