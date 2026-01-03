@@ -119,18 +119,32 @@ function recalcMediaValoraciones() {
 function recalcPrecioCompraInmueble() {
     const escritura = parseEuro(document.querySelector('[name="precio_propiedad"]')?.value);
 
-    const notaria = document.querySelector('[name="notaria"]');
-    const registro = document.querySelector('[name="registro"]');
-    const itp = document.querySelector('[name="itp"]');
+    const notariaEl = document.querySelector('[name="notaria"]');
+    const registroEl = document.querySelector('[name="registro"]');
+    const itpEl = document.querySelector('[name="itp"]');
+    const otrosEl = document.querySelector('[name="otros_gastos_compra"]');
 
-    if (notaria && !notaria.dataset.manual) {
-        notaria.value = formatEuro(Math.max(escritura * 0.002, 500));
+    // Autocalcular gastos básicos si no son manuales
+    if (notariaEl && !notariaEl.dataset.manual) {
+        notariaEl.value = formatEuro(Math.max(escritura * 0.002, 500));
     }
-    if (registro && !registro.dataset.manual) {
-        registro.value = formatEuro(Math.max(escritura * 0.002, 500));
+    if (registroEl && !registroEl.dataset.manual) {
+        registroEl.value = formatEuro(Math.max(escritura * 0.002, 500));
     }
-    if (itp && !itp.dataset.manual) {
-        itp.value = formatEuro(escritura * 0.02);
+    if (itpEl && !itpEl.dataset.manual) {
+        itpEl.value = formatEuro(escritura * 0.02);
+    }
+
+    const notaria = parseEuro(notariaEl?.value);
+    const registro = parseEuro(registroEl?.value);
+    const itp = parseEuro(itpEl?.value);
+    const otros = parseEuro(otrosEl?.value);
+
+    const totalAdquisicion = escritura + notaria + registro + itp + otros;
+
+    const totalInput = document.querySelector('[name="precio_compra_inmueble"]');
+    if (totalInput) {
+        totalInput.value = formatEuro(totalAdquisicion);
     }
 }
 
@@ -218,6 +232,19 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
     recalcPrecioCompraInmueble();
+    [
+        "precio_propiedad",
+        "notaria",
+        "registro",
+        "itp",
+        "otros_gastos_compra"
+    ].forEach(name => {
+        const el = document.querySelector(`[name="${name}"]`);
+        if (el) {
+            el.addEventListener("input", recalcPrecioCompraInmueble);
+            el.addEventListener("blur", recalcPrecioCompraInmueble);
+        }
+    });
     activarMapaAutomatico();
     aplicarFormatoEuroInicial();
 
@@ -267,12 +294,31 @@ document.addEventListener("DOMContentLoaded", () => {
     // Cálculo inicial
     recalcReforma();
 
+    // Restaurar valores guardados en sessionStorage tras reload
+    document.querySelectorAll('[data-euro], .euro-input').forEach(input => {
+        if (input.name) {
+            const saved = sessionStorage.getItem("sim_" + input.name);
+            if (saved !== null) {
+                input.value = saved;
+            }
+        }
+    });
+
+    recalcMediaValoraciones();
+    recalcReforma();
+
     // ===============================
     // LIMPIAR FORMATO € ANTES DE ENVIAR
     // ===============================
     const form = document.querySelector("form");
     if (form) {
-        form.addEventListener("submit", () => {
+        form.addEventListener("submit", (e) => {
+            document.querySelectorAll('[data-euro], .euro-input').forEach(input => {
+                if (input.name) {
+                    sessionStorage.setItem("sim_" + input.name, input.value);
+                }
+            });
+
             const valoresVisibles = {};
             document.querySelectorAll('[data-euro], .euro-input').forEach(input => {
                 valoresVisibles[input.name] = input.value;
