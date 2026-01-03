@@ -53,7 +53,7 @@
                   Abrir
                 </a>
 
-                <form method="post" action="{% url 'core:borrar_analisis_previo' %}"
+                <form method="post" action="{% url 'core:borrar_proyecto' estudio.id %}"
                       onsubmit="return confirm('¿Seguro que quieres borrar este estudio?');">
                   {% csrf_token %}
                   <button type="submit" class="btn btn-outline-danger btn-sm">
