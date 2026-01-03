@@ -55,8 +55,8 @@ function getFieldByNames(names) {
 function recalcGastosAdquisicion() {
     // Soportar varios name="..." porque el template ha ido cambiando
     const escrituraInput = getFieldByNames([
-        "precio_compra_inmueble",
         "precio_escritura",
+        "precio_compra_inmueble",
         "precio_compra",
         "valor_escritura"
     ]);
@@ -74,35 +74,15 @@ function recalcGastosAdquisicion() {
 
     const valorEscritura = parseEuro(escrituraInput?.value);
 
-    // ITP: 2% del valor de escritura
     const itp = valorEscritura * 0.02;
-
-    // Notaría: mínimo 500 €, si no 0,20 %
     const notaria = Math.max(500, valorEscritura * 0.002);
-
-    // Registro: mínimo 500 €, si no 0,20 % (regla práctica; ajustable si teníais otro porcentaje)
     const registro = Math.max(500, valorEscritura * 0.002);
 
-    // Media de valoraciones (si existen 3 campos de valoración)
-    const valoraciones = [
-        parseEuro(getFieldByNames(["valoracion_1", "valoracion1"])?.value),
-        parseEuro(getFieldByNames(["valoracion_2", "valoracion2"])?.value),
-        parseEuro(getFieldByNames(["valoracion_3", "valoracion3"])?.value)
-    ].filter(v => v > 0);
-
-    const mediaValoraciones = valoraciones.length
-        ? valoraciones.reduce((a, b) => a + b, 0) / valoraciones.length
-        : 0;
-
-    // Rellenar automáticos
     if (itpInput) itpInput.value = formatEuro(itp);
     if (notariaInput) notariaInput.value = formatEuro(notaria);
     if (registroInput) registroInput.value = formatEuro(registro);
 
-    // La media de valoraciones es la "venta estimada" que alimenta la rentabilidad
-    if (mediaValoracionesInput) mediaValoracionesInput.value = formatEuro(mediaValoraciones);
-
-    // Valor de adquisición = escritura + gastos (ITP + notaría + registro + otros gastos si existen)
+    let otros = 0;
     const otrosNombres = [
         "gestoria",
         "tasacion",
@@ -110,8 +90,6 @@ function recalcGastosAdquisicion() {
         "otros_gastos",
         "gastos_adquisicion"
     ];
-
-    let otros = 0;
     otrosNombres.forEach(n => {
         const el = getFieldByNames([n]);
         if (el) otros += parseEuro(el.value);
@@ -125,7 +103,9 @@ function recalcGastosAdquisicion() {
         "valor_adquisicion_inmueble"
     ]);
 
-    if (valorAdquisicionInput) valorAdquisicionInput.value = formatEuro(valorAdquisicion);
+    if (valorAdquisicionInput) {
+        valorAdquisicionInput.value = formatEuro(valorAdquisicion);
+    }
 }
 
 /* ===============================
