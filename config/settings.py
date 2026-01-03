@@ -89,31 +89,19 @@ TEMPLATES = [
 
 
 # =========================
-# BASE DE DATOS
+# BASE DE DATOS (ÚNICA FUENTE)
 # =========================
 
 import os
+import dj_database_url
 
-try:
-    import dj_database_url
-except ImportError:
-    dj_database_url = None
-
-if dj_database_url:
-    DATABASES = {
-        "default": dj_database_url.config(
-            default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
-            conn_max_age=600,
-            ssl_require=False,
-        )
-    }
-else:
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.sqlite3",
-            "NAME": BASE_DIR / "db.sqlite3",
-        }
-    }
+DATABASES = {
+    "default": dj_database_url.config(
+        default=os.environ.get("DATABASE_URL"),
+        conn_max_age=600,
+        ssl_require=True,
+    )
+}
 
 
 # =========================
