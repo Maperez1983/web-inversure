@@ -133,34 +133,84 @@ function recalcResultados() {
    INIT
 =============================== */
 document.addEventListener("DOMContentLoaded", () => {
+    // Recalcular al cargar
     recalcGastosAdquisicion();
     recalcResultados();
 
+    // Helpers
+    const bindRecalcEuro = (el) => {
+        if (!el) return;
+        // Recalcula mientras escribe
+        el.addEventListener("input", () => {
+            recalcGastosAdquisicion();
+            recalcResultados();
+        });
+        el.addEventListener("change", () => {
+            recalcGastosAdquisicion();
+            recalcResultados();
+        });
+        // Formatea al salir
+        el.addEventListener("blur", () => {
+            applyEuroFormatting(el);
+            recalcGastosAdquisicion();
+            recalcResultados();
+        });
+    };
+
+    const bindRecalcValuation = (el) => {
+        if (!el) return;
+        el.addEventListener("input", () => {
+            recalcResultados();
+        });
+        el.addEventListener("change", () => {
+            recalcResultados();
+        });
+        el.addEventListener("blur", () => {
+            applyEuroFormatting(el);
+            recalcResultados();
+        });
+    };
+
+    // 1) Asegurar que el campo de ESCRITURA siempre dispara recálculo (aunque falte data-euro en HTML)
+    const escrituraInput = document.querySelector("#precio_escritura") || getFieldByNames([
+        "precio_escritura",
+        "precio_compra_inmueble",
+        "precio_compra",
+        "valor_escritura"
+    ]);
+    bindRecalcEuro(escrituraInput);
+
+    // 2) Valuaciones: soportar data-valuation y fallback por nombre (si en HTML se perdió el data-valuation)
+    const valuationByData = Array.from(document.querySelectorAll('[data-valuation="true"]'));
+    const valuationByName = Array.from(document.querySelectorAll('input[name]')).filter(i => {
+        const n = (i.getAttribute("name") || "").toLowerCase();
+        return n.includes("valoracion") || n.includes("tasacion") || n.includes("valoracion_");
+    });
+    const valuationInputs = Array.from(new Set([...valuationByData, ...valuationByName]));
+    valuationInputs.forEach(bindRecalcValuation);
+
+    // 3) Resto de inputs monetarios con data-euro (excepto el de escritura ya ligado)
+    document.querySelectorAll('input[data-euro="true"]').forEach(el => {
+        if (el === escrituraInput) return;
+        // No queremos tratar inputs de valoraciones como euro genérico para no duplicar listeners
+        if (el.dataset.valuation === "true") return;
+        bindRecalcEuro(el);
+    });
+
+    // 4) Inputs restantes (no monetarios): recálculo por seguridad
     document.querySelectorAll("input").forEach(el => {
-        if (el.dataset.euro === "true") {
-            el.addEventListener("input", () => {
+        // Ya gestionados arriba
+        if (el === escrituraInput) return;
+        if (el.dataset.euro === "true") return;
+        if (el.dataset.valuation === "true") return;
+        const name = (el.getAttribute("name") || "").toLowerCase();
+        if (name.includes("valoracion") || name.includes("tasacion")) return;
+
+        ["input", "change"].forEach(evt => {
+            el.addEventListener(evt, () => {
                 recalcGastosAdquisicion();
                 recalcResultados();
             });
-            el.addEventListener("blur", () => {
-                applyEuroFormatting(el);
-            });
-        } else if (el.dataset.valuation === "true") {
-            el.addEventListener("input", () => {
-                recalcResultados();
-            });
-            el.addEventListener("blur", () => {
-                recalcResultados();
-                applyEuroFormatting(el);
-            });
-        } else {
-            // keep existing generic listeners for other inputs
-            ["input", "change", "blur"].forEach(evt => {
-                el.addEventListener(evt, () => {
-                    recalcGastosAdquisicion();
-                    recalcResultados();
-                });
-            });
-        }
+        });
     });
 });
