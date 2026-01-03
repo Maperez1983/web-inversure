@@ -143,7 +143,7 @@ function recalcPrecioCompraInmueble() {
     const totalAdquisicion = escritura + notaria + registro + itp + otros;
 
     const totalInput = document.querySelector('[name="precio_compra_inmueble"]');
-    if (totalInput) {
+    if (totalInput && !totalInput.dataset.manual) {
         totalInput.value = formatEuro(totalAdquisicion);
     }
 }
@@ -257,8 +257,8 @@ document.addEventListener("DOMContentLoaded", () => {
             "val_casafari",
             "val_tasacion"
         ].includes(name);
-
-        if (!esValoracion) {
+        // EXCLUIR explícitamente precio_compra_inmueble del marcado manual automático
+        if (!esValoracion && name !== "precio_compra_inmueble") {
             el.addEventListener("input", () => el.dataset.manual = "1");
         }
     });
