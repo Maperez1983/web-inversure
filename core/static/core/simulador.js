@@ -56,9 +56,8 @@ function recalcGastosAdquisicion() {
     if (registroInput) registroInput.value = formatEuro(registro);
 
     let otros = 0;
-    ["gestoria", "tasacion", "comision_agencia", "otros_gastos"].forEach(n => {
-        const el = getFieldByNames([n]);
-        if (el) otros += parseEuro(el.value);
+    document.querySelectorAll('[data-gasto="true"]').forEach(el => {
+        otros += parseEuro(el.value);
     });
 
     const valorAdquisicion = valorEscritura + itp + notaria + registro + otros;
@@ -78,17 +77,12 @@ function recalcGastosAdquisicion() {
    RESULTADOS / RENTABILIDAD
 =============================== */
 function recalcMediaValoraciones() {
-    const valoraciones = [
-        getFieldByNames(["valoracion_idealista"]),
-        getFieldByNames(["valoracion_fotocasa"]),
-        getFieldByNames(["valoracion_habitaclia"]),
-        getFieldByNames(["valoracion_otro"])
-    ].filter(Boolean);
+    const inputs = document.querySelectorAll('[data-valuation="true"]');
 
     let suma = 0;
     let count = 0;
 
-    valoraciones.forEach(el => {
+    inputs.forEach(el => {
         const v = parseEuro(el.value);
         if (v > 0) {
             suma += v;
@@ -104,7 +98,9 @@ function recalcMediaValoraciones() {
         "precio_venta_estimado"
     ]);
 
-    if (mediaInput) mediaInput.value = formatEuro(media);
+    if (mediaInput) {
+        mediaInput.value = formatEuro(media);
+    }
 
     return media;
 }
@@ -141,10 +137,12 @@ document.addEventListener("DOMContentLoaded", () => {
     recalcResultados();
 
     document.querySelectorAll("input").forEach(el => {
-        el.addEventListener("input", () => {
-            recalcGastosAdquisicion();
-            recalcMediaValoraciones();
-            recalcResultados();
+        ["input", "change", "blur"].forEach(evt => {
+            el.addEventListener(evt, () => {
+                recalcGastosAdquisicion();
+                recalcMediaValoraciones();
+                recalcResultados();
+            });
         });
     });
 });
