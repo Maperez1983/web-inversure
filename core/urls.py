@@ -24,6 +24,11 @@ urlpatterns = [
     ),
     path("estudios/", views.lista_estudios, name="lista_estudio"),
     path(
+        "estudios/<int:proyecto_id>/borrar/",
+        views.borrar_estudio,
+        name="borrar_estudio",
+    ),
+    path(
         "catastro/obtener/",
         views.catastro_obtener,
         name="catastro_obtener",
