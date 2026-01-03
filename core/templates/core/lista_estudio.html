@@ -36,15 +36,15 @@
               <div class="row text-center mb-4 inversure-kpis">
                 <div class="col-4">
                   <div class="fw-semibold small text-muted">Inversión</div>
-                  <div class="fw-bold">-- €</div>
+                  <div class="fw-bold">{{ estudio.precio_compra|floatformat:0|intcomma }} €</div>
                 </div>
                 <div class="col-4">
                   <div class="fw-semibold small text-muted">Beneficio</div>
-                  <div class="fw-bold">-- €</div>
+                  <div class="fw-bold">{{ estudio.beneficio|floatformat:0|intcomma }} €</div>
                 </div>
                 <div class="col-4">
                   <div class="fw-semibold small text-muted">ROI</div>
-                  <div class="fw-bold">-- %</div>
+                  <div class="fw-bold">{{ estudio.roi|floatformat:2 }} %</div>
                 </div>
               </div>
 
