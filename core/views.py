@@ -210,20 +210,6 @@ def simulador_nuevo(request):
             "editable": True,
         },
     )
-def simulador_nuevo(request):
-    """
-    Entrada para crear un nuevo estudio desde cero.
-    Simulador definitivo (sin simulador básico).
-    """
-    return render(
-        request,
-        "core/simulador.html",
-        {
-            "proyecto": None,
-            "resultado": None,
-            "editable": True,
-        },
-    )
 
 def simulador(request, proyecto_id=None):
     """
@@ -257,6 +243,14 @@ def simulador(request, proyecto_id=None):
 
     if request.method == "POST":
         accion = request.POST.get("accion")
+
+        # =========================
+        # CREAR PROYECTO AL GUARDAR SI NO EXISTE
+        # =========================
+        if accion == "guardar" and proyecto is None:
+            proyecto = Proyecto.objects.create(
+                estado="estudio"
+            )
 
         # =========================
         # GUARDAR DATOS (SIN CALCULAR)
@@ -471,6 +465,40 @@ def simulador(request, proyecto_id=None):
 
     if proyecto and proyecto.estado and proyecto.estado.lower() in ["cerrado", "cerrado_positivo"]:
         editable = False
+
+    # =========================
+    # RECÁLCULO SIEMPRE VISIBLE (base del simulador)
+    # =========================
+    if proyecto:
+        precio_escritura = safe_attr(proyecto, "precio_propiedad")
+        valores = [
+            safe_attr(proyecto, "val_idealista"),
+            safe_attr(proyecto, "val_fotocasa"),
+            safe_attr(proyecto, "val_registradores"),
+            safe_attr(proyecto, "val_casafari"),
+            safe_attr(proyecto, "val_tasacion"),
+        ]
+        valores = [v for v in valores if v > 0]
+        media_valoraciones = sum(valores) / len(valores) if valores else Decimal("0")
+
+        notaria_calc = max(precio_escritura * Decimal("0.002"), Decimal("500"))
+        registro_calc = max(precio_escritura * Decimal("0.002"), Decimal("500"))
+        itp_calc = precio_escritura * Decimal("0.02")
+
+        gastos_adquisicion_calc = notaria_calc + registro_calc + itp_calc
+        valor_adquisicion_calc = precio_escritura + gastos_adquisicion_calc
+
+        # Si no hay resultado previo (p. ej., tras Guardar), inyectar uno base
+        if resultado is None:
+            resultado = {
+                "valor_adquisicion": float(round(valor_adquisicion_calc, 2)),
+                "precio_venta": float(round(media_valoraciones, 2)),
+                "beneficio_neto": float(round(media_valoraciones - valor_adquisicion_calc, 2)),
+                "roi": float(round(
+                    ((media_valoraciones - valor_adquisicion_calc) / valor_adquisicion_calc * Decimal("100"))
+                    if valor_adquisicion_calc > 0 else Decimal("0"), 2
+                )),
+            }
 
     return render(
         request,
