@@ -192,6 +192,25 @@ def consultar_catastro_por_rc(ref_catastral):
 
 from django.shortcuts import get_object_or_404
 
+
+# =========================
+# Vista para crear un nuevo estudio desde cero (simulador definitivo)
+# =========================
+def simulador_nuevo(request):
+    """
+    Entrada para crear un nuevo estudio desde cero.
+    Simulador definitivo (sin simulador básico).
+    """
+    return render(
+        request,
+        "core/simulador.html",
+        {
+            "proyecto": None,
+            "resultado": None,
+            "editable": True,
+        },
+    )
+
 def simulador(request, proyecto_id=None):
     """
     Vista saneada del simulador:
