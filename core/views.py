@@ -545,9 +545,34 @@ def participacion_create(request, proyecto_id):
 def lista_estudios(request):
     """
     Muestra únicamente los proyectos en fase de ESTUDIO.
-    No incluye proyectos operativos ni simulaciones.
+    Enriquecido SOLO para visualización (no persiste):
+    - precio_compra
+    - beneficio
+    - roi (ya existente)
     """
     estudios = Proyecto.objects.filter(estado__iexact="estudio").order_by("-id")
+
+    for estudio in estudios:
+        # Precio de compra: prioridad a precio_propiedad, fallback seguro
+        precio_compra = (
+            estudio.precio_propiedad
+            if getattr(estudio, "precio_propiedad", None)
+            else Decimal("0")
+        )
+
+        # Precio de venta estimada
+        precio_venta = (
+            estudio.venta_estimada
+            if getattr(estudio, "venta_estimada", None)
+            else Decimal("0")
+        )
+
+        # Beneficio estimado (solo lectura)
+        beneficio = precio_venta - precio_compra
+
+        # Inyectar atributos SOLO para template
+        estudio.precio_compra = precio_compra
+        estudio.beneficio = beneficio
 
     return render(
         request,
@@ -641,6 +666,22 @@ def borrar_proyecto(request, proyecto_id):
 
     proyecto.delete()
     return redirect("core:lista_proyectos")
+
+
+# Nueva vista para borrar estudio de forma segura
+@require_POST
+def borrar_estudio(request, proyecto_id):
+    """
+    Borra un estudio (estado=estudio) de forma segura.
+    No afecta a simulaciones ni proyectos en operación.
+    """
+    estudio = get_object_or_404(
+        Proyecto,
+        id=proyecto_id,
+        estado__iexact="estudio"
+    )
+    estudio.delete()
+    return redirect("core:lista_estudio")
 
 
 # === Proyecto Detalle View ===
