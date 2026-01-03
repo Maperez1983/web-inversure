@@ -109,7 +109,12 @@ function recalcResultados() {
     ]);
 
     const reformaInput = getFieldByNames(["reforma", "coste_reforma"]);
-    const ventaInput = getFieldByNames(["precio_venta_estimado", "venta_estimada", "media_valoraciones"]);
+    const ventaInput =
+        document.querySelector('[name="precio_venta_estimado"]') ||
+        getFieldByNames([
+            "venta_estimada",
+            "media_valoraciones"
+        ]);
     const beneficioInput = getFieldByNames(["beneficio"]);
     const roiInput = getFieldByNames(["roi"]);
 
