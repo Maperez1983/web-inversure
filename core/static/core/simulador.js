@@ -22,6 +22,12 @@ function formatEuro(value) {
     }).format(value);
 }
 
+function applyEuroFormatting(input) {
+    const val = parseEuro(input.value);
+    input.value = formatEuro(val);
+    // cursor at end by default after setting value
+}
+
 function getFieldByNames(names) {
     for (const name of names) {
         const el = document.querySelector(`[name="${name}"]`);
@@ -92,16 +98,6 @@ function recalcMediaValoraciones() {
 
     const media = count > 0 ? suma / count : 0;
 
-    const mediaInput = getFieldByNames([
-        "media_valoraciones",
-        "venta_estimada",
-        "precio_venta_estimado"
-    ]);
-
-    if (mediaInput) {
-        mediaInput.value = formatEuro(media);
-    }
-
     return media;
 }
 
@@ -121,6 +117,10 @@ function recalcResultados() {
     const reforma = parseEuro(reformaInput?.value);
     const venta = recalcMediaValoraciones();
 
+    if (ventaInput) {
+        ventaInput.value = formatEuro(venta);
+    }
+
     const costeTotal = valorAdq + reforma;
     const beneficio = venta - costeTotal;
     const roi = costeTotal > 0 ? (beneficio / costeTotal) * 100 : 0;
@@ -137,12 +137,30 @@ document.addEventListener("DOMContentLoaded", () => {
     recalcResultados();
 
     document.querySelectorAll("input").forEach(el => {
-        ["input", "change", "blur"].forEach(evt => {
-            el.addEventListener(evt, () => {
+        if (el.dataset.euro === "true") {
+            el.addEventListener("input", () => {
                 recalcGastosAdquisicion();
-                recalcMediaValoraciones();
                 recalcResultados();
             });
-        });
+            el.addEventListener("blur", () => {
+                applyEuroFormatting(el);
+            });
+        } else if (el.dataset.valuation === "true") {
+            el.addEventListener("input", () => {
+                recalcResultados();
+            });
+            el.addEventListener("blur", () => {
+                recalcResultados();
+                applyEuroFormatting(el);
+            });
+        } else {
+            // keep existing generic listeners for other inputs
+            ["input", "change", "blur"].forEach(evt => {
+                el.addEventListener(evt, () => {
+                    recalcGastosAdquisicion();
+                    recalcResultados();
+                });
+            });
+        }
     });
 });
