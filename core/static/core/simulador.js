@@ -45,6 +45,40 @@ function aplicarFormatoEuroInicial() {
 =============================== */
 
 /* ===============================
+   GASTOS DE ADQUISICIÓN AUTOMÁTICOS
+=============================== */
+
+function recalcGastosAdquisicion() {
+    const escrituraInput = document.querySelector('[name="precio_compra_inmueble"]');
+    const itpInput = document.querySelector('[name="itp"]');
+    const notariaInput = document.querySelector('[name="notaria"]');
+    const mediaValoracionesInput = document.querySelector('[name="media_valoraciones"]');
+
+    const valorEscritura = parseEuro(escrituraInput?.value);
+
+    // ITP: 2% del valor de escritura
+    const itp = valorEscritura * 0.02;
+
+    // Notaría: mínimo 500 €, si no 0,20 %
+    const notaria = Math.max(500, valorEscritura * 0.002);
+
+    // Media de valoraciones (si existen 3 campos de valoración)
+    const valoraciones = [
+        parseEuro(document.querySelector('[name="valoracion_1"]')?.value),
+        parseEuro(document.querySelector('[name="valoracion_2"]')?.value),
+        parseEuro(document.querySelector('[name="valoracion_3"]')?.value)
+    ].filter(v => v > 0);
+
+    const mediaValoraciones = valoraciones.length
+        ? valoraciones.reduce((a, b) => a + b, 0) / valoraciones.length
+        : 0;
+
+    if (itpInput) itpInput.value = formatEuro(itp);
+    if (notariaInput) notariaInput.value = formatEuro(notaria);
+    if (mediaValoracionesInput) mediaValoracionesInput.value = formatEuro(mediaValoraciones);
+}
+
+/* ===============================
    REFORMA (OBRA + SEGURIDAD)
 =============================== */
 
@@ -84,17 +118,29 @@ document.addEventListener("DOMContentLoaded", () => {
     activarFormatoEuroGlobal();
     aplicarFormatoEuroInicial();
     recalcResultados();
+    recalcGastosAdquisicion();
 
-    // Añadir listeners para recalcular resultados
+    // Añadir listeners para recalcular resultados y gastos de adquisición
     [
         "precio_compra_inmueble",
         "reforma",
-        "precio_venta_estimado"
+        "precio_venta_estimado",
+        "itp",
+        "notaria",
+        "valoracion_1",
+        "valoracion_2",
+        "valoracion_3"
     ].forEach(name => {
         const el = document.querySelector(`[name="${name}"]`);
         if (el) {
-            el.addEventListener("input", recalcResultados);
-            el.addEventListener("blur", recalcResultados);
+            el.addEventListener("input", () => {
+                recalcResultados();
+                recalcGastosAdquisicion();
+            });
+            el.addEventListener("blur", () => {
+                recalcResultados();
+                recalcGastosAdquisicion();
+            });
         }
     });
 
