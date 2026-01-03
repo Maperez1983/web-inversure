@@ -1209,13 +1209,36 @@ def convertir_simulacion_a_proyecto(request, simulacion_id=None):
     except Exception:
         roi = Decimal("0")
 
+    # =========================
+    # CÁLCULO ECONÓMICO ESTUDIO
+    # =========================
+    precio_compra = precio
+
+    if simulacion_id:
+        precio_venta = simulacion.precio_venta_estimado or Decimal("0")
+    else:
+        precio_venta = parse_euro(request.POST.get("precio_venta"))
+
+    beneficio_calculado = (
+        precio_venta - precio_compra
+        if precio_compra and precio_venta
+        else Decimal("0")
+    )
+
+    roi_calculado = (
+        (beneficio_calculado / precio_compra) * Decimal("100")
+        if precio_compra and precio_compra > 0
+        else Decimal("0")
+    )
+
     proyecto = Proyecto.objects.create(
         nombre=f"Estudio - {direccion}",
         direccion=direccion,
         ref_catastral=ref_catastral,
-        precio_propiedad=precio,
-        beneficio_neto=beneficio,
-        roi=roi,
+        precio_propiedad=precio_compra,
+        venta_estimada=precio_venta,
+        beneficio_neto=beneficio_calculado,
+        roi=roi_calculado,
         estado="estudio",
     )
 
