@@ -1197,26 +1197,6 @@ from django.views.decorators.http import require_POST
 from django.views.decorators.http import require_POST
 
 
-# === GUARDAR SIMULACIÓN DESDE SIMULADOR BÁSICO (NO proyecto) ===
-@require_POST
-def guardar_simulacion(request):
-    """
-    Guarda una simulación básica desde el simulador básico
-    SIN convertirla en proyecto.
-    """
-    Simulacion.objects.create(
-        nombre=request.POST.get("direccion") or None,
-        direccion=request.POST.get("direccion"),
-        ref_catastral=request.POST.get("ref_catastral"),
-        precio_compra=parse_euro(request.POST.get("precio_compra")),
-        precio_venta_estimado=parse_euro(request.POST.get("precio_venta")),
-        beneficio=parse_euro(request.POST.get("beneficio")),
-        roi=parse_euro(request.POST.get("roi")),
-        viable=True,
-        convertida=False,
-    )
-
-    return redirect("core:lista_estudio")
 
 
 
