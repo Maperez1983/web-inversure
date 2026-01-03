@@ -112,7 +112,7 @@
                            id="precio_escritura"
                            class="form-control form-control-lg"
                            data-euro="true"
-                           value="{{ proyecto.precio_propiedad|default:'' }}" {% if not editable %}disabled{% endif %}>
+                           value="{{ proyecto.precio_propiedad|floatformat:2|intcomma }}" {% if not editable %}disabled{% endif %}>
                 </div>
             </div>
         </div>
