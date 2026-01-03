@@ -228,13 +228,13 @@ def simulador(request, proyecto_id=None):
         # =========================
         # GUARDAR DATOS (SIN CALCULAR)
         # =========================
-        if accion in ("guardar", "convertir") and proyecto:
+        if accion == "guardar" and proyecto:
             campos = [
                 # Identificación
-                "nombre", "direccion", "ref_catastral", "estado",
+                "nombre", "direccion", "ref_catastral",
 
                 # Datos principales
-                "precio_propiedad", "venta_estimada", "meses",
+                "precio_propiedad", "meses",
 
                 # Gastos de adquisición
                 "notaria", "registro", "itp", "otros_gastos_compra",
@@ -276,7 +276,6 @@ def simulador(request, proyecto_id=None):
             CAMPOS_NUMERICOS = {
                 # Datos principales
                 "precio_propiedad",
-                "venta_estimada",
                 "meses",
 
                 # Gastos de adquisición
@@ -349,18 +348,18 @@ def simulador(request, proyecto_id=None):
 
             proyecto.save()
 
-            if accion == "guardar":
-                return redirect("core:simulador", proyecto_id=proyecto.id)
-
-            if accion == "convertir":
-                proyecto.estado = "estudio"
-                proyecto.save(update_fields=["estado"])
-                return redirect("core:lista_proyectos")
+            return redirect("core:simulador", proyecto_id=proyecto.id)
 
         # =========================
-        # CALCULAR / ANALIZAR VIABILIDAD (SIN GUARDAR)
+        # CONVERTIR SIMULADOR EN PROYECTO (NO CAMBIA ESTADO MANUALMENTE)
         # =========================
-        if accion in ("calcular", "analizar") and proyecto:
+        if accion == "convertir" and proyecto:
+            return redirect("core:lista_proyectos")
+
+        # =========================
+        # ANALIZAR VIABILIDAD (SIN GUARDAR)
+        # =========================
+        if accion == "analizar" and proyecto:
             precio_escritura = parse_euro(request.POST.get("precio_propiedad"))
             valores = [
                 parse_euro(request.POST.get("val_idealista")),
