@@ -159,12 +159,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const bindRecalcValuation = (el) => {
         if (!el) return;
+
         el.addEventListener("input", () => {
             recalcResultados();
         });
+
         el.addEventListener("change", () => {
             recalcResultados();
         });
+
         el.addEventListener("blur", () => {
             applyEuroFormatting(el);
             recalcResultados();
