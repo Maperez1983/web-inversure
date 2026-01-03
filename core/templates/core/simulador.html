@@ -86,7 +86,7 @@
                         Valor de adquisición
                         <span class="ms-1 text-muted" title="Calculado automáticamente">ℹ️</span>
                     </label>
-                    <input type="text" name="precio_compra_inmueble"
+                    <input type="text" name="valor_adquisicion"
                            class="form-control form-control-lg"
                            data-euro="true"
                            readonly
@@ -109,6 +109,7 @@
                 <div class="col-md-4 mb-3">
                     <label class="form-label">Precio de escritura</label>
                     <input type="text" name="precio_propiedad"
+                           id="precio_escritura"
                            class="form-control form-control-lg"
                            data-euro="true"
                            value="{{ proyecto.precio_propiedad|default:'' }}" {% if not editable %}disabled{% endif %}>
