@@ -48,6 +48,10 @@
 
             {% block content %}{% endblock %}
 
+            {% if estudio and estudio.id %}
+              <a href="{% url 'core:pdf_estudio_preview' estudio_id=estudio.id %}" class="btn btn-outline-secondary">📄 Generar PDF</a>
+            {% endif %}
+
         </div>
     </section>
 </main>

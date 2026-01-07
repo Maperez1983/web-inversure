@@ -41,7 +41,7 @@ class Estudio(models.Model):
 
 
 # =========================
-# MODELO SNAPSHOT DE ESTUDIO
+# MODELO SNAPSHOT DE ESTUDIO (CIERRE DEFINITIVO)
 # =========================
 class EstudioSnapshot(models.Model):
     estudio = models.ForeignKey(
@@ -49,12 +49,58 @@ class EstudioSnapshot(models.Model):
         on_delete=models.CASCADE,
         related_name="snapshots"
     )
+
+    # --- CONTROL ---
     creado_en = models.DateTimeField(auto_now_add=True)
-    datos = models.JSONField()
-    version_simulador = models.CharField(max_length=20, default="v1")
+    version_simulador = models.CharField(
+        max_length=20,
+        default="v1",
+        help_text="Versión del simulador con la que se generó el snapshot"
+    )
+
+    # --- ESTADO DEL ESTUDIO ---
+    ESTADO_CHOICES = (
+        ("borrador", "Borrador"),
+        ("aprobado", "Aprobado"),
+        ("en_estudio", "En estudio"),
+        ("denegado", "Denegado"),
+    )
+
+    estado_estudio = models.CharField(
+        max_length=20,
+        choices=ESTADO_CHOICES,
+        default="borrador",
+        help_text="Estado del estudio en el momento de generar el snapshot"
+    )
+
+    fecha_decision_comite = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Fecha de la decisión del comité (si aplica)"
+    )
+
+    # --- METADATA ---
+    codigo_version = models.CharField(
+        max_length=30,
+        help_text="Código legible de versión del estudio (ej: EST-2026-001-v1)"
+    )
+
+    es_convertible = models.BooleanField(
+        default=False,
+        help_text="Indica si este snapshot puede convertirse en proyecto"
+    )
+
+    # --- DATOS CONGELADOS ---
+    datos = models.JSONField(
+        help_text="Datos completos congelados del estudio (comité, inversor, económico)"
+    )
 
     def __str__(self):
-        return f"Snapshot Estudio {self.estudio_id} - {self.creado_en.strftime('%d/%m/%Y %H:%M')}"
+        return (
+            f"Snapshot {self.codigo_version} · "
+            f"{self.get_estado_estudio_display()} · "
+            f"{self.creado_en.strftime('%d/%m/%Y %H:%M')}"
+        )
 
 class Proyecto(models.Model):
     # =========================

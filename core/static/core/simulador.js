@@ -948,8 +948,39 @@ document.addEventListener("DOMContentLoaded", () => {
 
             datos: {
               valor_adquisicion: valorAdqSeguro,
-              beneficio: beneficioSeguro,
+              valor_transmision: Number.isFinite(estadoEstudio.valor_transmision) ? estadoEstudio.valor_transmision : 0,
+
+              beneficio_bruto: Number.isFinite(estadoEstudio.comite?.beneficio_bruto)
+                ? estadoEstudio.comite.beneficio_bruto
+                : 0,
+
               roi: roiSeguro,
+
+              // --- Datos inmueble (para snapshot/PDF) ---
+              valor_referencia: Number.isFinite(estadoEstudio.valor_referencia) ? estadoEstudio.valor_referencia : null,
+              tipologia: (estadoEstudio.tipologia || "").trim(),
+              superficie_m2: Number.isFinite(estadoEstudio.superficie_m2) ? estadoEstudio.superficie_m2 : null,
+              estado_inmueble: (estadoEstudio.estado_inmueble || "").trim(),
+              situacion: (estadoEstudio.situacion || "").trim(),
+
+              // También lo enviamos agrupado (por compatibilidad con el builder del snapshot)
+              inmueble: {
+                nombre_proyecto: nombreProyecto,
+                direccion: direccionCompleta,
+                ref_catastral: referenciaCatastral,
+                valor_referencia: Number.isFinite(estadoEstudio.valor_referencia) ? estadoEstudio.valor_referencia : null,
+                tipologia: (estadoEstudio.tipologia || "").trim(),
+                superficie_m2: Number.isFinite(estadoEstudio.superficie_m2) ? estadoEstudio.superficie_m2 : null,
+                estado: (estadoEstudio.estado_inmueble || "").trim(),
+                situacion: (estadoEstudio.situacion || "").trim()
+              },
+
+              // ---- Vista inversor (persistencia) ----
+              inversure_comision_pct: (() => {
+                const sel = document.getElementById("inv_porcentaje_comision");
+                const v = sel ? parseFloat(sel.value) : 0;
+                return Number.isFinite(v) ? v : 0;
+              })(),
 
               snapshot: estadoEstudio
             }
@@ -1189,3 +1220,108 @@ function renderRoiBarra() {
   else if (roi >= 10) barra.classList.add("bg-warning");
   else barra.classList.add("bg-danger");
 }
+
+// ==============================
+// BLOQUE DE SEGURIDAD · VISTA INVERSOR
+// ==============================
+// La vista inversor es PASIVA.
+// No contiene cálculos ni listeners.
+// Cualquier lógica futura deberá:
+// 1. Leer valores ya calculados
+// 2. No modificar estadoEstudio
+// 3. No interferir con recalcularTodo()
+
+function actualizarVistaInversorPlaceholder() {
+  // Intencionadamente vacío.
+  // Se implementará en la v2 de vista inversor.
+}
+// ==============================
+// VISTA INVERSOR v2 · SOLO LECTURA
+// ==============================
+// Regla absoluta:
+// - NO modifica estadoEstudio
+// - NO recalcula nada
+// - SOLO lee valores ya calculados
+// - SOLO pinta en el DOM
+
+(function () {
+  function invParseEuro(value) {
+    if (value === null || value === undefined) return 0;
+    const s = String(value)
+      .replace(/\s/g, "")
+      .replace(/€/g, "")
+      .replace(/\./g, "")
+      .replace(/,/g, ".");
+    const n = parseFloat(s);
+    return Number.isFinite(n) ? n : 0;
+  }
+
+  function invFormatEuro(value) {
+    if (!Number.isFinite(value)) value = 0;
+    return value.toLocaleString("es-ES", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }) + " €";
+  }
+
+  function invFormatPct(value) {
+    if (!Number.isFinite(value)) value = 0;
+    return value.toFixed(2) + " %";
+  }
+
+  function invReadInput(id) {
+    const el = document.getElementById(id);
+    if (!el) return 0;
+    return invParseEuro(el.value || el.textContent || "");
+  }
+
+  function actualizarVistaInversorV2() {
+    const select = document.getElementById("inv_porcentaje_comision");
+    if (!select) return;
+
+    const porcentaje = parseFloat(select.value) || 0;
+
+    const valorAdquisicion = invReadInput("valor_adquisicion");
+    const valorTransmision = invReadInput("valor_transmision");
+
+    const beneficioBruto = valorTransmision - valorAdquisicion;
+    const comision = beneficioBruto > 0 ? beneficioBruto * (porcentaje / 100) : 0;
+    const beneficioNeto = beneficioBruto - comision;
+    const roiNeto =
+      valorAdquisicion > 0 ? (beneficioNeto / valorAdquisicion) * 100 : 0;
+
+    const elInv = document.getElementById("inversor_inversion");
+    if (elInv) elInv.textContent = invFormatEuro(valorAdquisicion);
+
+    const elCom = document.getElementById("inversor_comision_eur");
+    if (elCom) elCom.textContent = invFormatEuro(comision);
+
+    const elBen = document.getElementById("inversor_beneficio_neto");
+    if (elBen) elBen.textContent = invFormatEuro(beneficioNeto);
+
+    const elRoi = document.getElementById("inversor_roi_neto");
+    if (elRoi) elRoi.textContent = invFormatPct(roiNeto);
+  }
+
+  document.addEventListener("change", function (e) {
+    if (e.target && e.target.id === "inv_porcentaje_comision") {
+      actualizarVistaInversorV2();
+    }
+  });
+
+  document.addEventListener("DOMContentLoaded", function () {
+    actualizarVistaInversorV2();
+  });
+
+  if (typeof window.recalcularTodo === "function" && !window.__wrapInversorV2) {
+    const original = window.recalcularTodo;
+    window.recalcularTodo = function () {
+      const r = original.apply(this, arguments);
+      try {
+        actualizarVistaInversorV2();
+      } catch (e) {}
+      return r;
+    };
+    window.__wrapInversorV2 = true;
+  }
+})();

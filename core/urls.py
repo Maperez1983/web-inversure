@@ -11,7 +11,7 @@ urlpatterns = [
     path(
         "estudios/pdf/<int:estudio_id>/",
         views.pdf_estudio_preview,
-        name="pdf_estudio_rentabilidad"
+        name="pdf_estudio_preview"
     ),
 
     # Listados
