@@ -16,6 +16,10 @@ class Estudio(models.Model):
         max_digits=12, decimal_places=2, null=True, blank=True, default=None
     )
     datos = models.JSONField()
+    guardado = models.BooleanField(
+        default=False,
+        help_text="Marca si el estudio está finalizado/guardado (True) o es borrador (False)"
+    )
     valor_adquisicion = models.DecimalField(
         max_digits=12, decimal_places=2, null=True, blank=True
     )

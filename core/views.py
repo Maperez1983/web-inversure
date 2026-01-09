@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import render, get_object_or_404, redirect
 from django.http import JsonResponse, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.urls import reverse
@@ -323,20 +323,74 @@ def home(request):
     return render(request, "core/home.html")
 
 
-def simulador(request):
-    estudio = None
-    estudio_id = request.session.get("estudio_id")
+def nuevo_estudio(request):
+    """Crea un estudio nuevo, limpia la sesión del estudio anterior y redirige al simulador."""
+    # Crear un estudio vacío como BORRADOR (no debe aparecer en lista hasta que se guarde)
+    estudio = Estudio.objects.create(
+        nombre="",
+        direccion="",
+        ref_catastral="",
+        valor_referencia=None,
+        datos={},
+        guardado=False,
+    )
 
+    # Marcarlo como estudio activo en la sesión
+    request.session["estudio_id"] = estudio.id
+
+    # Redirigir al simulador (la vista simulador leerá el estudio desde sesión)
+    return redirect("core:simulador")
+
+
+def simulador(request):
+    """Renderiza el simulador.
+
+    - Si llega un estudio explícito por GET (estudio_id / id / codigo), lo carga y lo fija en sesión.
+    - Si no, usa el estudio activo en sesión.
+    - Si no hay ninguno, muestra el formulario vacío.
+
+    Nota: `codigo` se acepta por compatibilidad con enlaces antiguos.
+    Si `codigo` es numérico, se interpreta como `id`.
+    Si no es numérico y el modelo Estudio tiene campo `codigo`, se busca por ese campo.
+    """
+
+    # 1) Selección explícita desde lista (prioridad sobre sesión)
+    estudio_id_param = (request.GET.get("estudio_id") or request.GET.get("id") or "").strip()
+    codigo_param = (request.GET.get("codigo") or "").strip()
+
+    selected_id = None
+
+    if estudio_id_param.isdigit():
+        selected_id = int(estudio_id_param)
+    elif codigo_param:
+        if codigo_param.isdigit():
+            selected_id = int(codigo_param)
+        else:
+            # Intentar buscar por campo `codigo` si existe en el modelo
+            try:
+                Estudio._meta.get_field("codigo")
+            except Exception:
+                selected_id = None
+            else:
+                try:
+                    selected_id = Estudio.objects.only("id").get(codigo=codigo_param).id
+                except Estudio.DoesNotExist:
+                    selected_id = None
+
+    # Si se seleccionó uno válido por GET, fijarlo en sesión
+    if selected_id:
+        request.session["estudio_id"] = selected_id
+
+    # 2) Resolver estudio desde sesión
+    estudio_obj = None
+    estudio_id = request.session.get("estudio_id")
     if estudio_id:
         try:
             estudio_obj = Estudio.objects.get(id=estudio_id)
         except Estudio.DoesNotExist:
             estudio_obj = None
-    else:
-        estudio_obj = None
 
-    # No creamos el Estudio en GET para evitar duplicados/estudios vacíos.
-    # El Estudio se crea/actualiza al pulsar "Guardar".
+    # 3) Construir contexto
     if estudio_obj is None:
         estudio = {
             "id": None,
@@ -356,17 +410,28 @@ def simulador(request):
             "datos": estudio_obj.datos or {},
         }
 
-    return render(
-        request,
-        "core/simulador.html",
-        {
-            "estudio": estudio
-        }
-    )
+    # --- Estado inicial para hidratar el simulador al abrir un estudio guardado ---
+    estado_inicial = {}
+    try:
+        if estudio_obj is not None:
+            datos0 = getattr(estudio_obj, "datos", None) or {}
+            if isinstance(datos0, dict):
+                # Preferimos snapshot si existe; si no, el JSON completo
+                estado_inicial = datos0.get("snapshot") or datos0
+    except Exception:
+        estado_inicial = {}
+
+    ctx = {
+        "estudio": estudio,
+        "ESTUDIO_ID": str(estudio_obj.id) if estudio_obj is not None else "",
+        "ESTADO_INICIAL_JSON": json.dumps(estado_inicial, ensure_ascii=False),
+    }
+
+    return render(request, "core/simulador.html", ctx)
 
 
 def lista_estudio(request):
-    estudios_qs = Estudio.objects.all().order_by("-datos__roi", "-id")
+    estudios_qs = Estudio.objects.filter(guardado=True).order_by("-datos__roi", "-id")
     estudios = []
 
     for e in estudios_qs:
@@ -663,6 +728,7 @@ def guardar_estudio(request):
             "ref_catastral": ref_catastral,
             "valor_referencia": valor_referencia,
             "datos": datos,
+            "guardado": True,
         }
 
         if estudio_id:
@@ -691,8 +757,9 @@ def guardar_estudio(request):
             else:
                 estudio = Estudio.objects.create(**campos)
 
-        # Mantener el estudio actual en sesión
-        request.session["estudio_id"] = estudio.id
+        # Opción B: al guardar, consideramos el estudio "cerrado".
+        # Limpiamos la sesión para que el siguiente "Nuevo estudio" genere una ID nueva.
+        request.session.pop("estudio_id", None)
 
         if request.GET.get("debug") == "1":
             return JsonResponse({
@@ -718,46 +785,6 @@ def guardar_estudio(request):
                 "id": estudio.id,
             }
         )
-
-    except Exception as e:
-        return JsonResponse({"ok": False, "error": str(e)}, status=500)
-
-
-@csrf_exempt
-def convertir_a_proyecto(request):
-    if request.method != "POST":
-        return JsonResponse({"ok": False, "error": "Método no permitido"}, status=405)
-
-    try:
-        data = json.loads(request.body)
-        estudio_id = data.get("id")
-
-        estudio = Estudio.objects.get(id=estudio_id)
-
-        proyecto = Proyecto.objects.create(
-            nombre=estudio.nombre,
-            direccion=estudio.direccion,
-            ref_catastral=estudio.ref_catastral,
-            media_valoraciones=estudio.datos.get("media_valoraciones"),
-            precio_venta_estimado=estudio.datos.get("precio_venta_estimado"),
-        )
-
-        estudio.delete()
-
-        if request.session.get("estudio_id") == estudio_id:
-            try:
-                del request.session["estudio_id"]
-            except KeyError:
-                pass
-
-        return JsonResponse({
-            "ok": True,
-            "redirect": reverse("core:lista_proyectos"),
-            "proyecto_id": proyecto.id
-        })
-
-    except Estudio.DoesNotExist:
-        return JsonResponse({"ok": False, "error": "Estudio no encontrado"}, status=404)
 
     except Exception as e:
         return JsonResponse({"ok": False, "error": str(e)}, status=500)

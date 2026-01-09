@@ -698,14 +698,40 @@ function guardarEstudioEnListado() {
   }
 }
 
+let __estadoCargadoDesdeStorage = false;
+
+function getEstudioIdFromPage() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const v = (params.get("estudio_id") || params.get("id") || params.get("codigo") || "").trim();
+    if (v) return v;
+
+    // Si el template expone el id en un input oculto
+    const el1 = document.getElementById("estudio_id") || document.getElementById("id_estudio");
+    if (el1 && el1.value) return String(el1.value).trim();
+
+    // Si lo expone en el dataset del body o del form
+    if (document.body && document.body.dataset && document.body.dataset.estudioId) {
+      return String(document.body.dataset.estudioId).trim();
+    }
+    const form = document.getElementById("form-estudio");
+    if (form && form.dataset && form.dataset.estudioId) {
+      return String(form.dataset.estudioId).trim();
+    }
+
+    // Si lo expone como variable global
+    if (window.ESTUDIO_ID) return String(window.ESTUDIO_ID).trim();
+  } catch (e) {}
+  return "";
+}
+
 function cargarEstado() {
   try {
-    // Si venimos con un código en la URL, lo usamos como ID actual del estudio
-    const params = new URLSearchParams(window.location.search);
-    const codigoUrl = (params.get("codigo") || "").trim();
-    if (codigoUrl) {
-      estudioIdActual = codigoUrl;
-      estadoEstudio.id = codigoUrl;
+    // Resolver el estudio actual desde URL/template (estudio_id / id / codigo)
+    const idFromPage = getEstudioIdFromPage();
+    if (idFromPage) {
+      estudioIdActual = idFromPage;
+      estadoEstudio.id = idFromPage;
     }
 
     // 1) Intentar cargar estado por ID (si existe)
@@ -714,13 +740,49 @@ function cargarEstado() {
       data = sessionStorage.getItem(`estudio_inversure_${estudioIdActual}`);
     }
 
-    // 2) Si no hay, cargar el último estado (fallback)
-    if (!data) {
-      data = sessionStorage.getItem("estudio_inversure_actual");
+    // 2) Fallback SOLO si el "último estado" pertenece al mismo estudio
+    // (y SOLO si tenemos un estudioIdActual válido; evita contaminar "Nuevo estudio")
+    if (!data && estudioIdActual) {
+      const last = sessionStorage.getItem("estudio_inversure_actual");
+      if (last) {
+        try {
+          const lastParsed = JSON.parse(last);
+          if (lastParsed && String(lastParsed.id || "") === String(estudioIdActual)) {
+            data = last;
+          }
+        } catch (e) {}
+      }
     }
 
-    if (!data) return;
+    if (!data) {
+      // 3) Si venimos desde lista_estudio, el servidor puede inyectar el estado guardado.
+      // Reutilizamos el flujo normal convirtiéndolo a `data`.
+      const serverRaw = window.ESTADO_INICIAL;
+      let serverState = null;
+      if (serverRaw && typeof serverRaw === "object" && Object.keys(serverRaw).length > 0) {
+        serverState = serverRaw.snapshot && typeof serverRaw.snapshot === "object" ? serverRaw.snapshot : serverRaw;
+      }
 
+      if (serverState && typeof serverState === "object" && Object.keys(serverState).length > 0) {
+        try {
+          // Si el serverState trae id lo usamos; si no, respetamos el estudioIdActual resuelto por URL
+          if (serverState.id && !estudioIdActual) {
+            estudioIdActual = String(serverState.id);
+            estadoEstudio.id = String(serverState.id);
+          }
+          data = JSON.stringify(serverState);
+          __estadoCargadoDesdeStorage = false;
+        } catch (e) {
+          __estadoCargadoDesdeStorage = false;
+          return;
+        }
+      } else {
+        __estadoCargadoDesdeStorage = false;
+        return;
+      }
+    }
+
+    __estadoCargadoDesdeStorage = true;
     const parsed = JSON.parse(data);
 
     if (parsed.id) {
@@ -897,8 +959,13 @@ document.addEventListener("DOMContentLoaded", () => {
   // 1. Selectores DOM
   const btnGuardarEstudio = document.getElementById("btnGuardarEstudio");
   const btnBorrarEstudio = document.getElementById("btnBorrarEstudio");
-  const btnConvertirProyecto = document.getElementById("btnConvertirProyecto");
-  const btnGenerarPDF = document.getElementById("btnGenerarPDF");
+
+  // PDF: mantener SOLO el botón del header (#btnGenerarPdf). Si existe el duplicado legacy (#btnGenerarPDF), eliminarlo.
+  const btnGenerarPdf = document.getElementById("btnGenerarPdf");
+  const btnGenerarPDFDup = document.getElementById("btnGenerarPDF");
+  if (btnGenerarPDFDup && btnGenerarPDFDup !== btnGenerarPdf) {
+    try { btnGenerarPDFDup.remove(); } catch (e) {}
+  }
 
   // 3. CSRF helper
   function getCookie(name) {
@@ -998,7 +1065,15 @@ document.addEventListener("DOMContentLoaded", () => {
           estudioIdActual = data.id;
           estadoEstudio.id = data.id;
           guardarEstado();
-          // Guardado correcto: no navegamos
+
+          // Opción B: tras guardar, limpiamos cache local y volvemos a la lista
+          try {
+            sessionStorage.removeItem("estudio_inversure_actual");
+            sessionStorage.removeItem(`estudio_inversure_${estudioIdActual}`);
+            sessionStorage.removeItem("estudios_inversure");
+          } catch (e) {}
+
+          window.location.assign("/estudios/");
         }
       } catch (e) {
         alert("Error de comunicación con el servidor");
@@ -1059,83 +1134,16 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Convertir a proyecto
-  if (btnConvertirProyecto) {
-    btnConvertirProyecto.addEventListener("click", async function () {
-      if (estadoEstudio.comite?.decision_estado !== "aprobada") {
-        alert("El comité no ha aprobado este estudio. No se puede convertir en proyecto.");
-        return;
-      }
-      if (!estudioIdActual) {
-        alert("No hay estudio seleccionado.");
-        return;
-      }
-      try {
-        const resp = await fetch("/convertir-proyecto/", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-CSRFToken": csrftoken
-          },
-          body: JSON.stringify({
-            estudioIdActual: estudioIdActual
-          })
-        });
-        if (!resp.ok) {
-          alert("Error al convertir en proyecto.");
-          return;
-        }
-        const data = await resp.json();
-        if (data && data.ok) {
-          // Limpiar el estudio actual tras conversión
-          sessionStorage.removeItem("estudio_inversure_actual");
-          let estudios = [];
-          const raw = sessionStorage.getItem("estudios_inversure");
-          if (raw) {
-            estudios = JSON.parse(raw);
-            if (!Array.isArray(estudios)) estudios = [];
-          }
-          estudios = estudios.filter(e => e.id !== estudioIdActual);
-          sessionStorage.setItem("estudios_inversure", JSON.stringify(estudios));
-          // Resetear estado local
-          Object.keys(estadoEstudio).forEach(k => {
-            if (typeof estadoEstudio[k] === "object" && estadoEstudio[k] !== null) {
-              if (Array.isArray(estadoEstudio[k])) {
-                estadoEstudio[k] = [];
-              } else {
-                estadoEstudio[k] = {};
-              }
-            } else {
-              estadoEstudio[k] = null;
-            }
-          });
-          estadoEstudio.comite = {
-            beneficio_bruto: 0,
-            roi: 0,
-            margen_pct: 0,
-            semáforo: 0,
-            ratio_euro_beneficio: 0,
-            colchon_seguridad: 0,
-            breakeven: 0,
-            colchon_mercado: 0,
-            decision_texto: "",
-            conclusion: "",
-            nivel_riesgo: ""
-          };
-          estudioIdActual = null;
-          guardarEstado();
-          recalcularTodo();
-        }
-      } catch (e) {
-        alert("Error de red al convertir en proyecto.");
-      }
-    });
-  }
 
-  // Generar PDF (placeholder)
-  if (btnGenerarPDF) {
-    btnGenerarPDF.addEventListener("click", function () {
-      alert("Pendiente de implementación");
+  // Generar PDF (solo botón del header)
+  if (btnGenerarPdf) {
+    btnGenerarPdf.addEventListener("click", function (e) {
+      e.preventDefault();
+      if (!estudioIdActual) {
+        alert("Primero guarda el estudio para poder generar el PDF.");
+        return;
+      }
+      window.location.assign(`/estudios/pdf/${estudioIdActual}/`);
     });
   }
 });

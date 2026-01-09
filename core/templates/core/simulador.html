@@ -32,14 +32,11 @@
       </div>
       <div class="action-panel mt-3 mt-md-0">
         <div class="action-group primary-actions">
-          <button type="button" class="btn btn-inversure-primary btn-lg" id="btnConvertirProyecto">
-            🔁 Convertir a proyecto
-          </button>
           <button type="button" class="btn btn-inversure-secondary" id="btnGuardarEstudio">
             💾 Guardar estudio
           </button>
           <div class="action-hint text-muted small mt-1">
-            Guarda el estudio o conviértelo en una operación real
+            Guarda el estudio para conservar cambios y generar el PDF
           </div>
         </div>
 
@@ -624,30 +621,86 @@
   </div>
 </div>
 
-<script src="{% static 'core/simulador.js' %}"></script>
 <script>
-document.getElementById("btnConvertirProyecto").addEventListener("click", function() {
-    const estudioId = document.getElementById("estudio_id")?.value;
-    if (!estudioId) {
-        alert("No hay estudio para convertir.");
-        return;
+  // Datos iniciales del estudio (hidratación desde servidor)
+  window.ESTUDIO_ID = "{% if estudio %}{{ estudio.id }}{% endif %}";
+  window.ESTADO_INICIAL = {{ ESTADO_INICIAL_JSON|default:"{}"|safe }};
+
+  // Fallback de hidratación: si abrimos un estudio guardado y el template no tiene campos mapeados,
+  // rellenamos inputs desde ESTADO_INICIAL antes de que corran los cálculos.
+  (function () {
+    function setIfEmpty(el, value) {
+      if (!el) return;
+      const v = (value === null || value === undefined) ? "" : String(value);
+      if ((el.value || "").trim() === "" && v.trim() !== "") {
+        el.value = v;
+      }
     }
-    fetch("/convertir-proyecto/", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            "X-CSRFToken": document.querySelector('[name=csrfmiddlewaretoken]').value,
-        },
-        body: JSON.stringify({ estudio_id: estudioId }),
-    }).then(response => {
-        if (response.ok) {
-            window.location.href = "/proyectos/";
-        } else {
-            alert("Error al convertir el estudio.");
-        }
+
+    function setSelectIfEmpty(el, value) {
+      if (!el) return;
+      const v = (value === null || value === undefined) ? "" : String(value);
+      if ((el.value || "").trim() === "" && v.trim() !== "") {
+        el.value = v;
+      }
+    }
+
+    function setByNameIfEmpty(name, value) {
+      const el = document.querySelector(`[name="${name}"]`);
+      setIfEmpty(el, value);
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+      const s = window.ESTADO_INICIAL || {};
+      if (!s || typeof s !== 'object' || Object.keys(s).length === 0) return;
+
+      // Si viene encapsulado en snapshot/inmueble/economico/inversor, lo aplanamos lo justo
+      const inmueble = s.inmueble || s.texto || {};
+      const kpis = s.kpis || {};
+      const metricas = (kpis.metricas || {});
+      const comite = s.comite || {};
+      const economico = s.economico || {};
+
+      // Identificación inmueble
+      setIfEmpty(document.getElementById('nombre_proyecto'), inmueble.nombre_proyecto || s.nombre_proyecto);
+      setIfEmpty(document.getElementById('direccion_completa'), inmueble.direccion || s.direccion);
+      setIfEmpty(document.getElementById('referencia_catastral'), inmueble.ref_catastral || s.ref_catastral);
+      setIfEmpty(document.getElementById('valor_referencia'), inmueble.valor_referencia || metricas.valor_referencia);
+
+      setSelectIfEmpty(document.getElementById('tipologia'), inmueble.tipologia || s.tipologia);
+      setIfEmpty(document.getElementById('superficie_m2'), inmueble.superficie_m2 || metricas.superficie_m2);
+      setSelectIfEmpty(document.getElementById('estado'), inmueble.estado || s.estado);
+      setSelectIfEmpty(document.getElementById('situacion'), inmueble.situacion || s.situacion);
+
+      // Adquisición / gastos
+      setIfEmpty(document.getElementById('precio_escritura'), metricas.precio_escritura || s.precio_escritura);
+      setIfEmpty(document.getElementById('notaria'), metricas.notaria || s.notaria);
+      setIfEmpty(document.getElementById('registro'), metricas.registro || s.registro);
+      setIfEmpty(document.getElementById('gastos_extras'), metricas.gastos_extras || s.gastos_extras);
+
+      // Valoraciones
+      setByNameIfEmpty('valoracion_tasacion', (s.valoraciones && s.valoraciones.tasacion) || s.valoracion_tasacion);
+      setByNameIfEmpty('valoracion_idealista', (s.valoraciones && s.valoraciones.idealista) || s.valoracion_idealista);
+      setByNameIfEmpty('valoracion_fotocasa', (s.valoraciones && s.valoraciones.fotocasa) || s.valoracion_fotocasa);
+      setByNameIfEmpty('valoracion_registradores', (s.valoraciones && s.valoraciones.registradores) || s.valoracion_registradores);
+      setByNameIfEmpty('valoracion_casafari', (s.valoraciones && s.valoraciones.casafari) || s.valoracion_casafari);
+
+      // Comité (campos de texto/selección)
+      setIfEmpty(document.getElementById('resumen_ejecutivo_comite'), comite.observaciones || s.resumen_ejecutivo_comite);
+      setSelectIfEmpty(document.getElementById('decision_comite'), comite.decision || s.decision_comite);
+      setIfEmpty(document.getElementById('comentario_comite'), comite.comentario || s.comentario_comite);
+
+      // Comisión inversor
+      setSelectIfEmpty(document.getElementById('inv_porcentaje_comision'), (s.inversor && s.inversor.comision_pct) || s.comision_pct || s.comision_inversure_pct);
+
+      // Disparar recalculo si existe función global
+      try {
+        if (typeof window.recalcularTodo === 'function') window.recalcularTodo();
+      } catch (e) {}
     });
-});
+  })();
 </script>
+<script src="{% static 'core/simulador.js' %}"></script>
 </div>
 </div>
 </form>
@@ -662,6 +715,105 @@ document.getElementById("btnConvertirProyecto").addEventListener("click", functi
       window.location.href = url;
     }
   });
+})();
+</script>
+<script>
+(function () {
+  // --- Utilidades seguras ---
+  function parseNumber(v) {
+    if (v === null || v === undefined) return 0;
+    const s = String(v)
+      .replace(/\u00a0/g, ' ')
+      .replace(/[^0-9,.-]/g, '')
+      .trim();
+    if (!s) return 0;
+    // Formato ES: 1.234,56
+    const normalized = s.indexOf(',') >= 0
+      ? s.replace(/\./g, '').replace(',', '.')
+      : s;
+    const n = parseFloat(normalized);
+    return Number.isFinite(n) ? n : 0;
+  }
+
+  const nfCur = new Intl.NumberFormat('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const nfPct = new Intl.NumberFormat('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  function fmtEur(n) {
+    return nfCur.format(Number.isFinite(n) ? n : 0) + ' €';
+  }
+  function fmtPct(n) {
+    return nfPct.format(Number.isFinite(n) ? n : 0) + ' %';
+  }
+
+  // --- Inputs clave ---
+  const elPrecioEscritura = document.getElementById('precio_escritura');
+  const elItp = document.getElementById('itp');
+  const elNotaria = document.getElementById('notaria');
+  const elRegistro = document.getElementById('registro');
+  const elExtras = document.getElementById('gastos_extras');
+
+  const elValorAdq = document.getElementById('valor_adquisicion');
+  const elValorTrans = document.getElementById('valor_transmision');
+  const elMediaVal = document.getElementById('media_valoraciones');
+
+  const valoracionInputs = Array.from(document.querySelectorAll('input.valoracion'));
+
+  // KPIs (si existen)
+  const kpiBeneficio = document.getElementById('kpi_beneficio_bruto');
+  const kpiRoi = document.getElementById('kpi_roi');
+  const kpiMargen = document.getElementById('kpi_margen');
+  const kpiRatio = document.getElementById('kpi_ratio_beneficio');
+  const kpiColchon = document.getElementById('kpi_colchon_seguridad');
+  const kpiBreakeven = document.getElementById('kpi_breakeven');
+
+  function recalc() {
+    // Adquisición
+    const precio = parseNumber(elPrecioEscritura?.value);
+    const notaria = parseNumber(elNotaria?.value);
+    const registro = parseNumber(elRegistro?.value);
+    const extras = parseNumber(elExtras?.value);
+
+    const itp = precio * 0.02;
+    const valorAdq = precio + itp + notaria + registro + extras;
+
+    if (elItp) elItp.value = fmtEur(itp);
+    if (elValorAdq) elValorAdq.value = fmtEur(valorAdq);
+
+    // Media valoraciones
+    const vals = valoracionInputs
+      .map(i => parseNumber(i.value))
+      .filter(n => Number.isFinite(n) && n > 0);
+    const media = vals.length ? (vals.reduce((a, b) => a + b, 0) / vals.length) : 0;
+    if (elMediaVal) elMediaVal.value = fmtEur(media);
+
+    // Transmisión (por defecto = media de valoraciones)
+    const valorTrans = media;
+    if (elValorTrans) elValorTrans.value = fmtEur(valorTrans);
+
+    // KPIs
+    const beneficio = valorTrans - valorAdq;
+    const roi = valorAdq > 0 ? (beneficio / valorAdq) * 100 : 0;
+    const margen = valorTrans > 0 ? (beneficio / valorTrans) * 100 : 0;
+    const ratio = beneficio !== 0 ? (valorAdq / beneficio) : 0;
+    const colchon = media > 0 ? ((media - valorAdq) / media) * 100 : 0;
+
+    if (kpiBeneficio) kpiBeneficio.textContent = fmtEur(beneficio);
+    if (kpiRoi) kpiRoi.textContent = fmtPct(roi);
+    if (kpiMargen) kpiMargen.textContent = fmtPct(margen);
+    if (kpiRatio) kpiRatio.textContent = nfCur.format(ratio);
+    if (kpiColchon) kpiColchon.textContent = fmtPct(colchon);
+    if (kpiBreakeven) kpiBreakeven.textContent = fmtEur(valorAdq);
+  }
+
+  // Listeners (sin pisar otros handlers)
+  const watch = [elPrecioEscritura, elNotaria, elRegistro, elExtras, ...valoracionInputs].filter(Boolean);
+  watch.forEach(el => {
+    el.addEventListener('input', recalc);
+    el.addEventListener('change', recalc);
+  });
+
+  // Inicial
+  recalc();
 })();
 </script>
 {% endblock %}
