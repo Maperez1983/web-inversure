@@ -35,6 +35,17 @@
           <button type="button" class="btn btn-inversure-secondary" id="btnGuardarEstudio">
             💾 Guardar estudio
           </button>
+
+          {% if estudio and estudio.id and not estudio.bloqueado %}
+          <button
+            type="button"
+            class="btn btn-outline-primary"
+            id="btnConvertirProyecto"
+            data-action="convertir-a-proyecto">
+            ✅ Convertir a proyecto
+          </button>
+          {% endif %}
+
           <div class="action-hint text-muted small mt-1">
             Guarda el estudio para conservar cambios y generar el PDF
           </div>

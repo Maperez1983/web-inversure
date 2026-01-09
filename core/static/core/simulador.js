@@ -960,6 +960,12 @@ document.addEventListener("DOMContentLoaded", () => {
   const btnGuardarEstudio = document.getElementById("btnGuardarEstudio");
   const btnBorrarEstudio = document.getElementById("btnBorrarEstudio");
 
+  // Convertir a proyecto (FASE 2)
+  const btnConvertirProyecto =
+    document.getElementById("btnConvertirProyecto") ||
+    document.getElementById("btnConvertirAProyecto") ||
+    document.querySelector('[data-action="convertir-a-proyecto"]');
+
   // PDF: mantener SOLO el botón del header (#btnGenerarPdf). Si existe el duplicado legacy (#btnGenerarPDF), eliminarlo.
   const btnGenerarPdf = document.getElementById("btnGenerarPdf");
   const btnGenerarPDFDup = document.getElementById("btnGenerarPDF");
@@ -1144,6 +1150,54 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
       window.location.assign(`/estudios/pdf/${estudioIdActual}/`);
+    });
+  }
+
+  // Convertir a proyecto (FASE 2)
+  if (btnConvertirProyecto) {
+    btnConvertirProyecto.addEventListener("click", async function (e) {
+      e.preventDefault();
+
+      if (!estudioIdActual) {
+        alert("Primero guarda el estudio antes de convertirlo a proyecto.");
+        return;
+      }
+
+      // Confirmación ligera (evita clicks accidentales)
+      const ok = confirm("¿Convertir este estudio en proyecto? El estudio quedará bloqueado.");
+      if (!ok) return;
+
+      try {
+        const resp = await fetch(`/convertir-a-proyecto/${estudioIdActual}/`, {
+          method: "POST",
+          headers: {
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+            "X-Requested-With": "XMLHttpRequest",
+            "X-CSRFToken": csrftoken,
+          },
+          body: JSON.stringify({}),
+        });
+
+        const data = await resp.json().catch(() => null);
+
+        if (!resp.ok || !data || data.ok !== true) {
+          const msg = (data && (data.error || data.detail)) ? (data.error || data.detail) : "No se pudo convertir el estudio a proyecto.";
+          alert(msg);
+          return;
+        }
+
+        // Limpieza defensiva de sesión local del estudio (evita reabrirlo como activo)
+        try {
+          sessionStorage.removeItem("estudio_inversure_actual");
+          sessionStorage.removeItem(`estudio_inversure_${estudioIdActual}`);
+        } catch (e) {}
+
+        const redirectUrl = data.redirect || "/proyectos/";
+        window.location.assign(redirectUrl);
+      } catch (err) {
+        alert("Error de comunicación con el servidor al convertir a proyecto.");
+      }
     });
   }
 });

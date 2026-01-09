@@ -20,6 +20,17 @@ class Estudio(models.Model):
         default=False,
         help_text="Marca si el estudio está finalizado/guardado (True) o es borrador (False)"
     )
+
+    bloqueado = models.BooleanField(
+        default=False,
+        help_text="Si True, el estudio está congelado (no editable) porque ha sido convertido a proyecto"
+    )
+
+    bloqueado_en = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Fecha/hora en que el estudio se bloqueó (conversión a proyecto)"
+    )
     valor_adquisicion = models.DecimalField(
         max_digits=12, decimal_places=2, null=True, blank=True
     )
@@ -107,6 +118,37 @@ class EstudioSnapshot(models.Model):
         )
 
 class Proyecto(models.Model):
+    # =========================
+    # ORIGEN (FASE 2: CONVERSIÓN DESDE ESTUDIO)
+    # =========================
+    origen_estudio = models.ForeignKey(
+        Estudio,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="proyectos",
+        help_text="Estudio del que procede este proyecto (fase de análisis previa)"
+    )
+
+    origen_snapshot = models.ForeignKey(
+        EstudioSnapshot,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="proyectos",
+        help_text="Snapshot final del estudio usado para convertir a proyecto (estado congelado)"
+    )
+
+    snapshot_datos = models.JSONField(
+        null=True,
+        blank=True,
+        help_text="Copia inmutable de los datos del snapshot en el momento de conversión"
+    )
+
+    convertido_desde_estudio = models.BooleanField(
+        default=False,
+        help_text="Marca si el proyecto fue generado desde un estudio (True) o creado manualmente"
+    )
     # =========================
     # IDENTIFICACIÓN DEL PROYECTO
     # =========================

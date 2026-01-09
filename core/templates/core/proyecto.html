@@ -5,16 +5,25 @@
 <div class="inversure-app" data-fase="{{ fase }}">
   <section class="inversure-section">
     <div class="inversure-section-header text-center mb-5">
-      <h1 class="inversure-section-title">Estudio de inversión</h1>
+      <h1 class="inversure-section-title">Proyecto</h1>
       <div class="inversure-divider mx-auto"></div>
       <p class="inversure-section-subtitle">
-        Análisis completo de la operación con métricas avanzadas y decisión de inversión
+        Proyecto operativo creado desde un estudio. Los datos iniciales se heredan del snapshot de conversión.
       </p>
     </div>
 
+    {% if snapshot.meta.estudio_id %}
+    <div class="alert alert-light border d-flex justify-content-between align-items-center mb-4">
+      <div>
+        <strong>Origen:</strong> Estudio #{{ snapshot.meta.estudio_id }} · <strong>Snapshot:</strong> {{ snapshot.meta.fecha_snapshot|default:"" }}
+      </div>
+      <div class="small text-muted">Vista de solo lectura (base heredada)</div>
+    </div>
+    {% endif %}
 
 <form method="post" {% if not editable %}class="form-readonly"{% endif %}>
 {% csrf_token %}
+{% with inm=inmueble eco=economico inv=inversor met=kpis.metricas %}
 
 
 
@@ -34,7 +43,7 @@
                         Nombre del proyecto (identificador)
                     </label>
                     <input type="text" name="nombre" class="form-control form-control-lg"
-                           value="{{ proyecto.nombre|default:'' }}" {% if not editable %}disabled{% endif %}>
+                           value="{{ inm.nombre_proyecto|default:proyecto.nombre|default:'' }}" {% if not editable %}disabled{% endif %}>
                 </div>
 
                 <div class="col-md-6 mb-3">
@@ -81,7 +90,7 @@
                                id="ref_catastral"
                                name="ref_catastral"
                                class="form-control form-control-lg"
-                               value="{{ proyecto.ref_catastral|default:'' }}"
+                               value="{{ inm.ref_catastral|default:proyecto.ref_catastral|default:'' }}"
                                {% if not editable %}disabled{% endif %}>
                     </div>
                     <div class="align-self-end d-flex gap-2">
@@ -110,7 +119,7 @@
                 <div class="col-md-6 mb-3">
                     <label class="form-label">Valor de referencia catastral</label>
                     <input type="text" name="valor_referencia" class="form-control" data-euro="true"
-                           value="{{ proyecto.valor_referencia|default:'' }}" {% if not editable %}disabled{% endif %}>
+                           value="{{ inm.valor_referencia|default:proyecto.valor_referencia|default:'' }}" {% if not editable %}disabled{% endif %}>
                 </div>
             </div>
             <div class="row">
@@ -121,7 +130,7 @@
                            name="direccion"
                            class="form-control form-control-lg"
                            placeholder="Calle, número, municipio, provincia"
-                           value="{{ proyecto.direccion|default:'' }}"
+                           value="{{ inm.direccion|default:proyecto.direccion|default:'' }}"
                            {% if not editable %}disabled{% endif %}>
                 </div>
             </div>
@@ -136,7 +145,7 @@
                            class="form-control form-control-lg"
                            data-euro="true"
                            readonly
-                           value="{{ proyecto.precio_compra_inmueble|default:'' }}" {% if not editable %}disabled{% endif %}>
+                           value="{{ eco.valor_adquisicion|default:met.valor_adquisicion_total|default:met.valor_adquisicion|default:proyecto.precio_compra_inmueble|default:'' }}" {% if not editable %}disabled{% endif %}>
                 </div>
 
                 <div class="col-md-6 mb-3">
@@ -144,7 +153,7 @@
                     <input type="text" name="precio_venta_estimado"
                            class="form-control form-control-lg"
                            data-euro="true"
-                           value="{{ proyecto.precio_venta_estimado|default:'' }}" {% if not editable %}disabled{% endif %}>
+                           value="{{ eco.valor_transmision|default:met.valor_transmision|default:met.precio_transmision|default:proyecto.precio_venta_estimado|default:'' }}" {% if not editable %}disabled{% endif %}>
                 </div>
             </div>
             <div class="row">
@@ -178,7 +187,7 @@
                     <input type="text" name="precio_propiedad"
                            class="form-control form-control-lg"
                            data-euro="true"
-                           value="{{ proyecto.precio_propiedad|default:'' }}" {% if not editable %}disabled{% endif %}>
+                           value="{{ met.precio_escritura|default:proyecto.precio_propiedad|default:'' }}" {% if not editable %}disabled{% endif %}>
                 </div>
 
                 <div class="col-md-4 mb-3">
@@ -186,7 +195,7 @@
                     <input type="text" name="venta_estimada"
                            class="form-control form-control-lg"
                            data-euro="true"
-                           value="{{ proyecto.venta_estimada|default:'' }}" {% if not editable %}disabled{% endif %}>
+                           value="{{ eco.valor_transmision|default:met.valor_transmision|default:met.precio_transmision|default:proyecto.venta_estimada|default:'' }}" {% if not editable %}disabled{% endif %}>
                 </div>
 
                 <div class="col-md-4 mb-3">
@@ -227,7 +236,7 @@
                       <span class="ms-1 text-muted" title="Calculado automáticamente en base a los datos introducidos">ℹ️</span>
                     </label>
                     <input type="text" name="notaria" class="form-control form-control-lg" data-euro="true"
-                           value="{{ proyecto.notaria|default:'' }}" {% if not editable %}disabled{% endif %}>
+                           value="{{ met.notaria|default:proyecto.notaria|default:'' }}" {% if not editable %}disabled{% endif %}>
                 </div>
                 <div class="col-md-4 mb-3">
                     <label class="form-label">
@@ -235,7 +244,7 @@
                       <span class="ms-1 text-muted" title="Calculado automáticamente en base a los datos introducidos">ℹ️</span>
                     </label>
                     <input type="text" name="registro" class="form-control form-control-lg" data-euro="true"
-                           value="{{ proyecto.registro|default:'' }}" {% if not editable %}disabled{% endif %}>
+                           value="{{ met.registro|default:proyecto.registro|default:'' }}" {% if not editable %}disabled{% endif %}>
                 </div>
             </div>
             <div class="row">
@@ -245,7 +254,7 @@
                       <span class="ms-1 text-muted" title="Calculado automáticamente en base a los datos introducidos">ℹ️</span>
                     </label>
                     <input type="text" name="itp" class="form-control form-control-lg" data-euro="true"
-                           value="{{ proyecto.itp|default:'' }}" {% if not editable %}disabled{% endif %}>
+                           value="{{ met.itp|default:proyecto.itp|default:'' }}" {% if not editable %}disabled{% endif %}>
                 </div>
                 <div class="col-md-6 mb-3">
                     <label class="form-label">Otros gastos</label>
@@ -553,7 +562,7 @@
                         value="guardar"
                         class="btn btn-outline-primary"
                         {% if not editable %}disabled{% endif %}>
-                    💾 Guardar estudio
+                    💾 Guardar proyecto
                 </button>
             </div>
         </div>
@@ -750,6 +759,7 @@
     </div>
 </div>
 {% endif %}
+{% endwith %}
 </form>
   </section>
 </div>
